@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Office敏感词加解密工具 — Sam Li</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+            line-height: 1.8;
+            color: #e0e0e0;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            min-height: 100vh;
+        }
+
+        /* 导航栏 */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(15, 12, 41, 0.9);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .nav-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 0 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 60px;
+        }
+
+        .logo {
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo::before {
+            content: "🔐";
+            font-size: 22px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 30px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: #b0b0d0;
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.3s;
+            position: relative;
+        }
+
+        .nav-links a:hover {
+            color: #fff;
+        }
+
+        .nav-links a::after {
+            content: "";
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: #667eea;
+            transition: width 0.3s;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        /* 通用容器 */
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        section {
+            padding: 80px 0;
+        }
+
+        /* 第一部分：Hero */
+        .hero {
+            padding-top: 140px;
+            padding-bottom: 100px;
+            text-align: center;
+        }
+
+        .hero h1 {
+            font-size: 42px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 16px;
+            letter-spacing: -0.5px;
+            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero .subtitle {
+            font-size: 18px;
+            color: #a0a0c0;
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .hero .badges {
+            display: flex;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: rgba(102, 126, 234, 0.15);
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 20px;
+            font-size: 13px;
+            color: #a0b0e0;
+        }
+
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 16px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            text-decoration: none;
+            border-radius: 50px;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.6);
+        }
+
+        .download-note {
+            margin-top: 16px;
+            font-size: 13px;
+            color: #8080a0;
+        }
+
+        /* 第二部分：捐赠 */
+        .donate {
+            background: rgba(255,255,255,0.03);
+            border-top: 1px solid rgba(255,255,255,0.05);
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .section-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-desc {
+            color: #9090b0;
+            margin-bottom: 40px;
+            font-size: 15px;
+        }
+
+        .donate-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: center;
+            max-width: 500px;
+            margin: 0 auto;
+            backdrop-filter: blur(10px);
+        }
+
+        .donate-card .heart {
+            font-size: 40px;
+            margin-bottom: 16px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+
+        .donate-card h3 {
+            font-size: 20px;
+            color: #fff;
+            margin-bottom: 12px;
+        }
+
+        .donate-card p {
+            color: #a0a0c0;
+            font-size: 14px;
+            margin-bottom: 24px;
+            line-height: 1.8;
+        }
+
+        .qrcode-box {
+            display: inline-block;
+            padding: 16px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+
+        .qrcode-box img {
+            width: 200px;
+            height: 200px;
+            display: block;
+        }
+
+        .qrcode-label {
+            margin-top: 12px;
+            font-size: 13px;
+            color: #8080a0;
+        }
+
+        /* 第三部分：版权 */
+        .copyright {
+            text-align: center;
+        }
+
+        .copyright-card {
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 16px;
+            padding: 40px;
+            text-align: left;
+        }
+
+        .copyright-card h3 {
+            color: #fff;
+            font-size: 18px;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .copyright-card .license-block {
+            margin-bottom: 24px;
+        }
+
+        .copyright-card .license-block h4 {
+            color: #667eea;
+            font-size: 15px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .copyright-card .license-block p,
+        .copyright-card .license-block li {
+            color: #b0b0d0;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .copyright-card .license-block ul {
+            padding-left: 20px;
+            margin-top: 8px;
+        }
+
+        .copyright-card .license-block li {
+            margin-bottom: 6px;
+        }
+
+        .copyright-card .contact-box {
+            background: rgba(102, 126, 234, 0.1);
+            border: 1px solid rgba(102, 126, 234, 0.2);
+            border-radius: 10px;
+            padding: 16px 20px;
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .copyright-card .contact-box p {
+            color: #c0c0e0;
+            font-size: 14px;
+        }
+
+        .copyright-card .contact-box a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        /* 第四部分：使用说明 */
+        .guide {
+            background: rgba(255,255,255,0.03);
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .steps {
+            display: grid;
+            gap: 20px;
+        }
+
+        .step-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.06);
+            border-radius: 12px;
+            padding: 28px;
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            transition: all 0.3s;
+        }
+
+        .step-card:hover {
+            background: rgba(255,255,255,0.06);
+            border-color: rgba(102, 126, 234, 0.3);
+            transform: translateX(4px);
+        }
+
+        .step-num {
+            width: 44px;
+            height: 44px;
+            min-width: 44px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .step-content h4 {
+            color: #fff;
+            font-size: 17px;
+            margin-bottom: 8px;
+        }
+
+        .step-content p {
+            color: #a0a0c0;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .step-content .tip {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 4px 12px;
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.2);
+            border-radius: 6px;
+            font-size: 12px;
+            color: #ffc107;
+        }
+
+        /* 页脚 */
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            color: #606080;
+            font-size: 13px;
+        }
+
+        footer a {
+            color: #8080a0;
+            text-decoration: none;
+        }
+
+        /* 核心卖点卡片 */
+        .features {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            max-width: 900px;
+            margin: 40px auto 0;
+            text-align: left;
+        }
+
+        .feature-card {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 24px 20px;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .feature-card:hover {
+            background: rgba(255,255,255,0.08);
+            border-color: rgba(102, 126, 234, 0.4);
+            transform: translateY(-4px);
+        }
+
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+
+        .feature-card h4 {
+            color: #fff;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+
+        .feature-card p {
+            color: #a0a0c0;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .features {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 12px;
+                margin-top: 24px;
+            }
+            .feature-card {
+                padding: 16px 14px;
+            }
+            .feature-card h4 {
+                font-size: 14px;
+            }
+            .feature-card p {
+                font-size: 12px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .features {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 28px;
+            }
+
+            .hero .subtitle {
+                font-size: 15px;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .donate-card {
+                padding: 24px;
+            }
+
+            .step-card {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
+
+            section {
+                padding: 50px 0;
+            }
+        }
+
+        /* 平滑滚动 */
+        html {
+            scroll-behavior: smooth;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 导航栏 -->
+    <nav>
+        <div class="nav-inner">
+            <a href="#" class="logo">Office敏感词加解密工具</a>
+            <ul class="nav-links">
+                <li><a href="#download">下载</a></li>
+                <li><a href="#donate">捐赠</a></li>
+                <li><a href="#copyright">版权</a></li>
+                <li><a href="#guide">使用说明</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- 第一部分：Hero / 下载 -->
+    <section class="hero" id="download">
+        <div class="container">
+            <h1>Office敏感词加解密工具</h1>
+            <p class="subtitle">
+                一键对 Word、Excel、PowerPoint 文档中的敏感词汇进行等长英文字符替换加密，
+                词表采用 AES-256 加密保护，确保文档安全流转。
+            </p>
+            <div class="badges">
+                <span class="badge">📄 Word (.docx)</span>
+                <span class="badge">📊 Excel (.xlsx)</span>
+                <span class="badge">🎬 PowerPoint (.pptx)</span>
+                <span class="badge">🔒 AES-256 加密</span>
+                <span class="badge">🪟 Windows 原生</span>
+            </div>
+
+            <!-- 核心卖点 -->
+            <div class="features">
+                <div class="feature-card">
+                    <div class="feature-icon">💻</div>
+                    <h4>纯本地运行</h4>
+                    <p>文档不上传云端，全程离线处理，彻底杜绝数据外泄风险，企业机密文档安全无忧</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔄</div>
+                    <h4>可逆脱敏</h4>
+                    <p>加密后的文档可正常流转，需要时通过配套词表与密码一键还原原文，100% 精准恢复</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">📐</div>
+                    <h4>排版保持</h4>
+                    <p>等长英文字符替换敏感词，文档格式、段落间距、打印效果完全不变，肉眼无法识别敏感位置</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🛡️</div>
+                    <h4>词表独立加密</h4>
+                    <p>敏感词映射关系采用 AES-256 加密保护，即使词表文件泄露，没有密码也无法破解原文</p>
+                </div>
+            </div>
+            <br>
+            <a href="office_sensitive_encryptor_v22.py" class="download-btn" download>
+                ⬇️ 下载程序 (v2.2)
+            </a>
+            <p class="download-note">
+                下载后可直接运行
+            </p>
+        </div>
+    </section>
+
+    <!-- 第二部分：捐赠 -->
+    <section class="donate" id="donate">
+        <div class="container">
+            <h2 class="section-title">💖 支持开发者</h2>
+            <p class="section-desc">
+                如果您觉得这款工具对您有帮助，欢迎通过扫码捐赠支持持续开发与维护。
+                您的每一份支持都是开源前进的动力！
+            </p>
+            <div class="donate-card">
+                <div class="heart">☕</div>
+                <h3>请作者喝杯咖啡</h3>
+                <p>
+                    本软件个人非商业用途完全免费。<br>
+                    您的捐赠将用于服务器维护、功能迭代和bug修复。
+                </p>
+                <div class="qrcode-box">
+                    <img src="donate_qrcode.png" alt="捐赠二维码">
+                </div>
+                <p class="qrcode-label">微信 / 支付宝扫码捐赠（请替换为真实收款码）</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 第三部分：版权说明 -->
+    <section class="copyright" id="copyright">
+        <div class="container">
+            <h2 class="section-title">© 版权声明与授权协议</h2>
+            <p class="section-desc">使用本软件前，请仔细阅读以下授权条款。</p>
+
+            <div class="copyright-card">
+                <h3>📜 授权许可</h3>
+
+                <div class="license-block">
+                    <h4>✅ 个人非商业用途 — 免费授权</h4>
+                    <ul>
+                        <li>个人用户可在非商业场景下免费使用本软件的全部功能</li>
+                        <li>包括但不限于：个人学习、研究、家庭文档管理、个人项目等非盈利性活动</li>
+                        <li>个人用户可自由复制和分发本软件，但须保持软件完整性，不得移除或修改版权声明</li>
+                    </ul>
+                </div>
+
+                <div class="license-block">
+                    <h4>🏢 企业/单位商业用途 — 必须购买商用授权</h4>
+                    <ul>
+                        <li>任何企业、事业单位、组织机构将本软件用于商业生产、内部业务流程、对外服务、产品集成、数据安全处理等直接或间接产生经济收益的场景，必须事先获得书面商用授权</li>
+                        <li>包括但不限于：企业内部文档加密管理系统、对外提供文档安全处理服务、集成到商业产品或解决方案中、政府/金融/医疗/教育等机构的业务系统使用、任何形式的 SaaS / PaaS 或托管服务</li>
+                    </ul>
+                </div>
+
+                <div class="license-block">
+                    <h4>🚫 禁止行为</h4>
+                    <ul>
+                        <li>未经版权所有者 Sam Li 的书面许可，不得对本软件进行反向工程、反编译、反汇编</li>
+                        <li>不得出租、出借、出售、分发、再许可本软件或其任何部分</li>
+                        <li>不得移除或修改软件中的版权声明、授权协议、作者信息</li>
+                        <li>不得将本软件用于任何违反法律法规或侵犯第三方权益的活动</li>
+                        <li>不得以本软件为基础开发竞争性产品或服务</li>
+                    </ul>
+                </div>
+
+                <div class="license-block">
+                    <h4>⚠️ 免责声明</h4>
+                    <p>本软件按"现状"提供，作者不对软件的适用性、可靠性、准确性作出任何明示或暗示的担保。用户应自行承担使用本软件的风险，作者不对因使用或无法使用本软件而导致的任何直接、间接、附带、特殊或后果性损害承担责任，包括但不限于数据丢失、业务中断、密码遗忘导致的文档无法恢复等情形。用户有责任妥善保管加密密码和加密词表，因密码丢失或词表损坏导致的文档无法解密，作者不提供恢复服务且不承担任何责任。</p>
+                </div>
+
+                <div class="contact-box">
+                    <p>
+                        📧 如需购买企业商用授权，请联系：<strong>Sam Li</strong> 
+                        <a href="mailto:samstay@sina.com">samstay@sina.com</a><br>
+                        <span style="font-size:12px; color:#8080a0;">请在邮件中注明企业全称、统一社会信用代码、预计使用场景和范围、联系人及电话</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 第四部分：使用说明 -->
+    <section class="guide" id="guide">
+        <div class="container">
+            <h2 class="section-title">📖 使用说明</h2>
+            <p class="section-desc">简单四步，快速上手文档敏感词加解密。</p>
+
+            <div class="steps">
+                <div class="step-card">
+                    <div class="step-num">1</div>
+                    <div class="step-content">
+                        <h4>准备敏感词表</h4>
+                        <p>在左侧"敏感词表管理"面板中，添加需要保护的敏感词汇（如：机密、薪酬、密码、身份证号等）。点击"生成示例词表"可快速体验功能。词表支持加载/保存为 .json 文件，方便复用。</p>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-num">2</div>
+                    <div class="step-content">
+                        <h4>选择文档并设置密码</h4>
+                        <p>在"文档加密"面板中，点击"浏览..."选择要加密的 Office 文档（支持 .docx / .xlsx / .pptx）。在密码框中设置解密密码（至少4位），密码是唯一的解密凭证，请务必牢记。</p>
+                        <span class="tip">⚠️ 密码丢失将无法恢复原文！</span>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-num">3</div>
+                    <div class="step-content">
+                        <h4>一键加密</h4>
+                        <p>点击"一键加密"，选择保存位置。程序将生成两个文件：<code>xxx_encrypted.docx</code>（加密后的文档）和 <code>xxx_vocab.enc</code>（加密后的词表）。加密后的文档外观与原文一致，只是敏感词变成了等长英文字符串，不影响正常浏览和打印。</p>
+                        <span class="tip">💡 建议将加密文档和加密词表分开保管，提高安全性</span>
+                    </div>
+                </div>
+
+                <div class="step-card">
+                    <div class="step-num">4</div>
+                    <div class="step-content">
+                        <h4>解密恢复原文</h4>
+                        <p>在"文档解密"面板中，选择加密后的文档（_encrypted 后缀）和配套的 .enc 加密词表文件，输入加密时设置的密码，点击"一键解密"。程序将恢复原始文档和词表，文档中的敏感词恢复为原文。</p>
+                        <span class="tip">🔒 采用零宽空格标记技术，确保不会误替换文档中原本存在的正常英文</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer>
+        <p>
+            © 2026 Sam Li · 版权所有 · 
+            <a href="mailto:samstay@sina.com">samstay@sina.com</a>
+        </p>
+        <p style="margin-top:8px; font-size:12px;">本软件受《中华人民共和国著作权法》保护，未经授权不得用于商业用途</p>
+    </footer>
+
+</body>
+</html>
