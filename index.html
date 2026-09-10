@@ -1,702 +1,1620 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Office敏感词加解密工具 — Sam Li</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-            line-height: 1.8;
-            color: #e0e0e0;
-            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
-            min-height: 100vh;
-        }
-
-        /* 导航栏 */
-        nav {
-            position: fixed;
-            top: 0;
-            width: 100%;
-            background: rgba(15, 12, 41, 0.9);
-            backdrop-filter: blur(10px);
-            z-index: 1000;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .nav-inner {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 0 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            height: 60px;
-        }
-
-        .logo {
-            font-size: 18px;
-            font-weight: 700;
-            color: #fff;
-            text-decoration: none;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .logo::before {
-            content: "🔐";
-            font-size: 22px;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 30px;
-            list-style: none;
-        }
-
-        .nav-links a {
-            color: #b0b0d0;
-            text-decoration: none;
-            font-size: 14px;
-            transition: color 0.3s;
-            position: relative;
-        }
-
-        .nav-links a:hover {
-            color: #fff;
-        }
-
-        .nav-links a::after {
-            content: "";
-            position: absolute;
-            bottom: -4px;
-            left: 0;
-            width: 0;
-            height: 2px;
-            background: #667eea;
-            transition: width 0.3s;
-        }
-
-        .nav-links a:hover::after {
-            width: 100%;
-        }
-
-        /* 通用容器 */
-        .container {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 0 20px;
-        }
-
-        section {
-            padding: 80px 0;
-        }
-
-        /* 第一部分：Hero */
-        .hero {
-            padding-top: 140px;
-            padding-bottom: 100px;
-            text-align: center;
-        }
-
-        .hero h1 {
-            font-size: 42px;
-            font-weight: 800;
-            color: #fff;
-            margin-bottom: 16px;
-            letter-spacing: -0.5px;
-            background: linear-gradient(90deg, #667eea, #764ba2, #f093fb);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .hero .subtitle {
-            font-size: 18px;
-            color: #a0a0c0;
-            margin-bottom: 40px;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .hero .badges {
-            display: flex;
-            justify-content: center;
-            gap: 12px;
-            margin-bottom: 40px;
-            flex-wrap: wrap;
-        }
-
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 14px;
-            background: rgba(102, 126, 234, 0.15);
-            border: 1px solid rgba(102, 126, 234, 0.3);
-            border-radius: 20px;
-            font-size: 13px;
-            color: #a0b0e0;
-        }
-
-        .download-btn {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            padding: 16px 40px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: #fff;
-            font-size: 16px;
-            font-weight: 600;
-            text-decoration: none;
-            border-radius: 50px;
-            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
-            transition: all 0.3s ease;
-            border: none;
-            cursor: pointer;
-        }
-
-        .download-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 12px 40px rgba(102, 126, 234, 0.6);
-        }
-
-        .download-note {
-            margin-top: 16px;
-            font-size: 13px;
-            color: #8080a0;
-        }
-
-        /* 第二部分：捐赠 */
-        .donate {
-            background: rgba(255,255,255,0.03);
-            border-top: 1px solid rgba(255,255,255,0.05);
-            border-bottom: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .section-title {
-            font-size: 28px;
-            font-weight: 700;
-            color: #fff;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .section-desc {
-            color: #9090b0;
-            margin-bottom: 40px;
-            font-size: 15px;
-        }
-
-        .donate-card {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 16px;
-            padding: 40px;
-            text-align: center;
-            max-width: 500px;
-            margin: 0 auto;
-            backdrop-filter: blur(10px);
-        }
-
-        .donate-card .heart {
-            font-size: 40px;
-            margin-bottom: 16px;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.1); }
-        }
-
-        .donate-card h3 {
-            font-size: 20px;
-            color: #fff;
-            margin-bottom: 12px;
-        }
-
-        .donate-card p {
-            color: #a0a0c0;
-            font-size: 14px;
-            margin-bottom: 24px;
-            line-height: 1.8;
-        }
-
-        .qrcode-box {
-            display: inline-block;
-            padding: 16px;
-            background: #fff;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-        }
-
-        .qrcode-box img {
-            width: 200px;
-            height: 200px;
-            display: block;
-        }
-
-        .qrcode-label {
-            margin-top: 12px;
-            font-size: 13px;
-            color: #8080a0;
-        }
-
-        /* 第三部分：版权 */
-        .copyright {
-            text-align: center;
-        }
-
-        .copyright-card {
-            background: rgba(255,255,255,0.03);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 16px;
-            padding: 40px;
-            text-align: left;
-        }
-
-        .copyright-card h3 {
-            color: #fff;
-            font-size: 18px;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-
-        .copyright-card .license-block {
-            margin-bottom: 24px;
-        }
-
-        .copyright-card .license-block h4 {
-            color: #667eea;
-            font-size: 15px;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .copyright-card .license-block p,
-        .copyright-card .license-block li {
-            color: #b0b0d0;
-            font-size: 14px;
-            line-height: 1.8;
-        }
-
-        .copyright-card .license-block ul {
-            padding-left: 20px;
-            margin-top: 8px;
-        }
-
-        .copyright-card .license-block li {
-            margin-bottom: 6px;
-        }
-
-        .copyright-card .contact-box {
-            background: rgba(102, 126, 234, 0.1);
-            border: 1px solid rgba(102, 126, 234, 0.2);
-            border-radius: 10px;
-            padding: 16px 20px;
-            margin-top: 20px;
-            text-align: center;
-        }
-
-        .copyright-card .contact-box p {
-            color: #c0c0e0;
-            font-size: 14px;
-        }
-
-        .copyright-card .contact-box a {
-            color: #667eea;
-            text-decoration: none;
-            font-weight: 600;
-        }
-
-        /* 第四部分：使用说明 */
-        .guide {
-            background: rgba(255,255,255,0.03);
-            border-top: 1px solid rgba(255,255,255,0.05);
-        }
-
-        .steps {
-            display: grid;
-            gap: 20px;
-        }
-
-        .step-card {
-            background: rgba(255,255,255,0.04);
-            border: 1px solid rgba(255,255,255,0.06);
-            border-radius: 12px;
-            padding: 28px;
-            display: flex;
-            gap: 20px;
-            align-items: flex-start;
-            transition: all 0.3s;
-        }
-
-        .step-card:hover {
-            background: rgba(255,255,255,0.06);
-            border-color: rgba(102, 126, 234, 0.3);
-            transform: translateX(4px);
-        }
-
-        .step-num {
-            width: 44px;
-            height: 44px;
-            min-width: 44px;
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            border-radius: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 18px;
-            font-weight: 700;
-            color: #fff;
-        }
-
-        .step-content h4 {
-            color: #fff;
-            font-size: 17px;
-            margin-bottom: 8px;
-        }
-
-        .step-content p {
-            color: #a0a0c0;
-            font-size: 14px;
-            line-height: 1.8;
-        }
-
-        .step-content .tip {
-            display: inline-block;
-            margin-top: 10px;
-            padding: 4px 12px;
-            background: rgba(255, 193, 7, 0.1);
-            border: 1px solid rgba(255, 193, 7, 0.2);
-            border-radius: 6px;
-            font-size: 12px;
-            color: #ffc107;
-        }
-
-        /* 页脚 */
-        footer {
-            text-align: center;
-            padding: 40px 20px;
-            border-top: 1px solid rgba(255,255,255,0.05);
-            color: #606080;
-            font-size: 13px;
-        }
-
-        footer a {
-            color: #8080a0;
-            text-decoration: none;
-        }
-
-        /* 核心卖点卡片 */
-        .features {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 20px;
-            max-width: 900px;
-            margin: 40px auto 0;
-            text-align: left;
-        }
-
-        .feature-card {
-            background: rgba(255,255,255,0.05);
-            border: 1px solid rgba(255,255,255,0.08);
-            border-radius: 16px;
-            padding: 24px 20px;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(10px);
-        }
-
-        .feature-card:hover {
-            background: rgba(255,255,255,0.08);
-            border-color: rgba(102, 126, 234, 0.4);
-            transform: translateY(-4px);
-        }
-
-        .feature-icon {
-            font-size: 32px;
-            margin-bottom: 12px;
-        }
-
-        .feature-card h4 {
-            color: #fff;
-            font-size: 16px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .feature-card p {
-            color: #a0a0c0;
-            font-size: 13px;
-            line-height: 1.7;
-        }
-
-        /* 响应式 */
-        @media (max-width: 768px) {
-            .features {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 12px;
-                margin-top: 24px;
-            }
-            .feature-card {
-                padding: 16px 14px;
-            }
-            .feature-card h4 {
-                font-size: 14px;
-            }
-            .feature-card p {
-                font-size: 12px;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .features {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        /* 响应式 */
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 28px;
-            }
-
-            .hero .subtitle {
-                font-size: 15px;
-            }
-
-            .nav-links {
-                display: none;
-            }
-
-            .donate-card {
-                padding: 24px;
-            }
-
-            .step-card {
-                flex-direction: column;
-                align-items: center;
-                text-align: center;
-            }
-
-            section {
-                padding: 50px 0;
-            }
-        }
-
-        /* 平滑滚动 */
-        html {
-            scroll-behavior: smooth;
-        }
-    </style>
+<html lang="zh-CN" data-page-node-id="fQQi9V5Fcv4a89Z3n28Gmi">
+<head data-page-node-id="keYdc5AUkMNMGn9Mati67r">
+<meta charset="UTF-8" data-page-node-id="epYef1hBiuf9bACgsFxgAA">
+<meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="Q1zCTQZnf1ooD17E9DgtWX">
+<meta name="description" content="Office 敏感词加解密工具 — 一键对 Word / Excel / PowerPoint 中的敏感词做等长英文字符替换加密，词表 AES-256 独立保护，纯本地运行。" data-page-node-id="weg2SMpTCk9G1LIWKEHNAh">
+<title>Office 敏感词加解密工具 · 让敏感词在文档里隐形</title>
+<style>
+/* ============================================================
+   Design tokens
+   ============================================================ */
+:root{
+  --ink:        #0b1220;
+  --ink-2:      #1b2a44;
+  --muted:      #5d6d88;
+  --muted-2:    #8b9cb6;
+
+  --blue:       #3b82f6;
+  --violet:     #8b5cf6;
+  --cyan:       #22d3ee;
+  --mint:       #34d399;
+  --amber:      #f59e0b;
+
+  --grad:       linear-gradient(115deg,#3b82f6 0%,#8b5cf6 48%,#22d3ee 100%);
+  --grad-line:  linear-gradient(180deg,#3b82f6 0%,#8b5cf6 50%,#22d3ee 100%);
+
+  --bg:         #f6f9ff;
+  --card:       rgba(255,255,255,.78);
+  --card-solid: #ffffff;
+  --line:       rgba(15,35,70,.08);
+  --line-2:     rgba(15,35,70,.14);
+
+  --shadow-sm:  0 2px 10px rgba(20,45,90,.05);
+  --shadow:     0 18px 44px -20px rgba(28,58,120,.28);
+  --shadow-lg:  0 44px 90px -36px rgba(40,75,160,.42);
+
+  --ease:       cubic-bezier(.25,.46,.45,.94);
+  --ease-out:   cubic-bezier(.215,.61,.355,1);
+  --ease-expo:  cubic-bezier(.19,1,.22,1);
+  --ease-io:    cubic-bezier(.645,.045,.355,1);
+
+  --r-sm: 12px;
+  --r:    20px;
+  --r-lg: 28px;
+
+  --maxw: 1180px;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+
+html{
+  scroll-behavior:smooth;
+  -webkit-text-size-adjust:100%;
+  scroll-padding-top:96px;
+}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",sans-serif;
+  font-size:16px;
+  line-height:1.75;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+
+::selection{background:rgba(139,92,246,.22)}
+
+img{max-width:100%;display:block}
+a{color:inherit}
+
+/* ============================================================
+   Ambient background — fresh mesh gradient blobs
+   ============================================================ */
+.bg{
+  position:fixed; inset:0;
+  z-index:-1;
+  overflow:hidden;
+  pointer-events:none;
+  background:
+    radial-gradient(120% 90% at 50% -20%, #ffffff 0%, #f6f9ff 55%, #eef4ff 100%);
+}
+.blob{
+  position:absolute;
+  border-radius:50%;
+  filter:blur(70px);
+  opacity:.55;
+  will-change:transform;
+}
+.blob.b1{width:52vw;height:52vw;left:-14vw;top:-16vw;
+  background:radial-gradient(circle at 35% 35%, rgba(59,130,246,.55), rgba(59,130,246,0) 68%);
+  animation:float1 26s var(--ease-io) infinite alternate}
+.blob.b2{width:46vw;height:46vw;right:-12vw;top:-8vw;
+  background:radial-gradient(circle at 60% 40%, rgba(139,92,246,.5), rgba(139,92,246,0) 68%);
+  animation:float2 31s var(--ease-io) infinite alternate}
+.blob.b3{width:44vw;height:44vw;right:4vw;bottom:-16vw;
+  background:radial-gradient(circle at 50% 50%, rgba(34,211,238,.48), rgba(34,211,238,0) 68%);
+  animation:float3 24s var(--ease-io) infinite alternate}
+.blob.b4{width:38vw;height:38vw;left:-8vw;bottom:-12vw;
+  background:radial-gradient(circle at 50% 50%, rgba(52,211,153,.42), rgba(52,211,153,0) 68%);
+  animation:float1 29s var(--ease-io) infinite alternate-reverse}
+
+@keyframes float1{to{transform:translate3d(6vw,4vh,0) scale(1.12)}}
+@keyframes float2{to{transform:translate3d(-5vw,7vh,0) scale(1.08)}}
+@keyframes float3{to{transform:translate3d(-7vw,-5vh,0) scale(1.15)}}
+
+/* fine grid overlay for tech texture */
+.bg::after{
+  content:"";position:absolute;inset:0;
+  background-image:
+    linear-gradient(rgba(20,50,110,.045) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(20,50,110,.045) 1px,transparent 1px);
+  background-size:64px 64px;
+  mask-image:radial-gradient(120% 80% at 50% 0%,#000 0%,transparent 72%);
+  -webkit-mask-image:radial-gradient(120% 80% at 50% 0%,#000 0%,transparent 72%);
+}
+
+/* ============================================================
+   Scroll progress bar
+   ============================================================ */
+.progress{
+  position:fixed;top:0;left:0;right:0;height:3px;
+  z-index:300;pointer-events:none;
+}
+.progress i{
+  display:block;height:100%;width:100%;
+  transform:scaleX(0);transform-origin:0 50%;
+  background:linear-gradient(90deg,#3b82f6,#8b5cf6,#22d3ee);
+  box-shadow:0 0 14px rgba(99,102,241,.7);
+  will-change:transform;
+}
+
+/* ============================================================
+   Nav
+   ============================================================ */
+.nav{
+  position:fixed;top:0;left:0;right:0;z-index:200;
+  transition:background .45s var(--ease-out),box-shadow .45s var(--ease-out),border-color .45s var(--ease-out);
+  border-bottom:1px solid transparent;
+}
+.nav-inner{
+  max-width:var(--maxw);margin:0 auto;
+  padding:0 24px;height:76px;
+  display:flex;align-items:center;justify-content:space-between;gap:24px;
+  transition:height .45s var(--ease-out);
+}
+.nav.scrolled{
+  background:rgba(255,255,255,.72);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  backdrop-filter:blur(20px) saturate(180%);
+  border-bottom-color:var(--line);
+  box-shadow:0 10px 34px -22px rgba(28,58,120,.5);
+}
+.nav.scrolled .nav-inner{height:62px}
+
+.logo{
+  display:flex;align-items:center;gap:10px;
+  text-decoration:none;font-weight:800;font-size:15.5px;
+  letter-spacing:-.01em;color:var(--ink);white-space:nowrap;
+}
+.logo .mark{
+  width:32px;height:32px;border-radius:10px;
+  background:var(--grad);
+  display:grid;place-items:center;
+  color:#fff;font-size:15px;
+  box-shadow:0 8px 20px -8px rgba(99,102,241,.9);
+  flex:none;
+}
+.logo small{display:block;font-size:11px;font-weight:600;color:var(--muted-2);letter-spacing:.06em;line-height:1}
+
+.nav-links{display:flex;gap:6px;list-style:none;margin:0;padding:0}
+.nav-links a{
+  position:relative;display:block;padding:8px 14px;
+  font-size:14px;font-weight:600;color:var(--muted);text-decoration:none;
+  border-radius:999px;transition:color .25s var(--ease),background-color .25s var(--ease);
+}
+.nav-links a:hover{color:var(--ink);background:rgba(15,35,70,.05)}
+.nav-links a.active{color:var(--blue);background:rgba(59,130,246,.09)}
+
+/* 捐赠 — 暖色高亮，与其余导航项刻意拉开差异 */
+.nav-links a.nav-donate{
+  position:relative;overflow:hidden;
+  padding:8px 17px;
+  color:#fff;font-weight:800;letter-spacing:.01em;
+  background:linear-gradient(120deg,#fb923c 0%,#f43f5e 52%,#ec4899 100%);
+  background-size:190% 190%;background-position:0 0;
+  box-shadow:0 10px 24px -10px rgba(244,63,94,.95),
+             0 0 0 1px rgba(255,255,255,.22) inset;
+  transition:color .25s var(--ease),background-position .55s var(--ease),
+             transform .2s var(--ease-out),box-shadow .3s var(--ease-out);
+}
+.nav-links a.nav-donate::before{
+  content:"";position:absolute;top:-2px;bottom:-2px;left:0;width:42%;
+  background:linear-gradient(100deg,transparent,rgba(255,255,255,.6),transparent);
+  transform:translateX(-150%) skewX(-18deg);
+  animation:donateShine 3.6s var(--ease-io) infinite;
+  pointer-events:none;
+}
+@keyframes donateShine{
+  0%,58%{transform:translateX(-150%) skewX(-18deg)}
+  92%,100%{transform:translateX(330%) skewX(-18deg)}
+}
+.nav-links a.nav-donate:hover,
+.nav-links a.nav-donate.active{
+  color:#fff;
+  background-position:100% 0;
+  box-shadow:0 14px 32px -10px rgba(244,63,94,1),
+             0 0 0 1px rgba(255,255,255,.34) inset;
+}
+@media (hover:hover) and (pointer:fine){
+  .nav-links a.nav-donate:hover{transform:translateY(-2px)}
+}
+.nav-links a.nav-donate:active{transform:scale(.97)}
+
+.nav-cta{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:10px 20px;border-radius:999px;
+  font-size:14px;font-weight:700;text-decoration:none;color:#fff;
+  background:var(--grad);background-size:160% 160%;
+  box-shadow:0 10px 26px -12px rgba(99,102,241,.95);
+  transition:transform .2s var(--ease-out),box-shadow .25s var(--ease-out),background-position .6s var(--ease);
+}
+@media (hover:hover) and (pointer:fine){
+  .nav-cta:hover{transform:translateY(-2px);box-shadow:0 16px 34px -12px rgba(99,102,241,1);background-position:100% 0}
+}
+.nav-cta:active{transform:scale(.97)}
+
+/* ============================================================
+   Layout helpers
+   ============================================================ */
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+.section{padding:110px 0}
+.section.tight{padding:80px 0}
+
+.eyebrow{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:7px 15px;border-radius:999px;
+  font-size:12.5px;font-weight:700;letter-spacing:.04em;
+  color:var(--blue);background:rgba(59,130,246,.08);
+  border:1px solid rgba(59,130,246,.18);
+}
+.eyebrow.violet{color:var(--violet);background:rgba(139,92,246,.08);border-color:rgba(139,92,246,.2)}
+.eyebrow.cyan{color:#0891b2;background:rgba(34,211,238,.1);border-color:rgba(34,211,238,.25)}
+
+h2.h{
+  font-size:clamp(27px,3.6vw,42px);
+  line-height:1.22;letter-spacing:-.025em;
+  font-weight:800;margin:16px 0 0;
+}
+h2.h .gt,.gt{
+  background:var(--grad);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+}
+.lede{
+  margin:18px 0 0;max-width:640px;
+  font-size:17px;color:var(--muted);
+}
+.secno{
+  font-size:12px;font-weight:800;letter-spacing:.22em;
+  color:var(--muted-2);display:flex;align-items:center;gap:12px;
+}
+.secno::after{content:"";height:1px;flex:1;max-width:70px;background:linear-gradient(90deg,var(--line-2),transparent)}
+
+/* ============================================================
+   Reveal system
+   ============================================================ */
+[data-reveal]{
+  opacity:0;
+  transform:translate3d(0,26px,0);
+  transition:opacity .75s var(--ease-out),transform .75s var(--ease-out);
+  transition-delay:var(--d,0ms);
+}
+[data-reveal="left"]{transform:translate3d(-26px,0,0)}
+[data-reveal="right"]{transform:translate3d(26px,0,0)}
+[data-reveal="scale"]{transform:scale(.94)}
+[data-reveal="blur"]{filter:blur(10px);transform:translate3d(0,20px,0)}
+[data-reveal].in{opacity:1;transform:none;filter:none}
+
+.fade-up{animation:fadeUp .85s var(--ease-out) both;animation-delay:var(--d,0ms)}
+@keyframes fadeUp{from{opacity:0;transform:translate3d(0,22px,0)}to{opacity:1;transform:none}}
+
+/* ============================================================
+   Hero
+   ============================================================ */
+.hero{position:relative;padding:172px 0 96px;text-align:center}
+.hero h1{
+  margin:26px auto 0;max-width:14em;
+  font-size:clamp(38px,6.6vw,74px);
+  line-height:1.08;letter-spacing:-.038em;font-weight:800;
+}
+.hero h1 .line{display:block;overflow:hidden;padding-bottom:.08em}
+.hero h1 .line>span{
+  display:block;
+  transform:translate3d(0,112%,0);
+  animation:lineUp 1s var(--ease-expo) both;
+}
+.hero h1 .line:nth-child(1)>span{animation-delay:.05s}
+.hero h1 .line:nth-child(2)>span{animation-delay:.16s}
+@keyframes lineUp{from{transform:translate3d(0,112%,0)}to{transform:none}}
+
+.hero .sub{
+  max-width:660px;margin:26px auto 0;
+  font-size:clamp(15px,1.6vw,18px);color:var(--muted);line-height:1.85;
+}
+.hero .sub b{color:var(--ink-2);font-weight:700}
+
+.cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-top:38px}
+
+.btn{
+  display:inline-flex;align-items:center;gap:10px;
+  padding:16px 32px;border-radius:999px;
+  font-size:15.5px;font-weight:700;text-decoration:none;
+  border:1px solid transparent;cursor:pointer;
+  transition:transform .2s var(--ease-out),box-shadow .3s var(--ease-out),background-color .3s var(--ease),border-color .3s var(--ease);
+}
+.btn-primary{
+  color:#fff;background:var(--grad);background-size:170% 170%;
+  box-shadow:0 18px 40px -16px rgba(99,102,241,.95);
+}
+@media (hover:hover) and (pointer:fine){
+  .btn-primary:hover{transform:translateY(-3px);box-shadow:0 26px 54px -18px rgba(99,102,241,1);background-position:100% 0}
+  .btn-ghost:hover{background:#fff;border-color:var(--line-2);transform:translateY(-3px)}
+}
+.btn-primary:active,.btn-ghost:active{transform:scale(.975)}
+.btn-ghost{
+  color:var(--ink-2);background:rgba(255,255,255,.6);
+  border-color:var(--line-2);
+  -webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+}
+
+.hero-note{margin-top:16px;font-size:13px;color:var(--muted-2)}
+
+/* floating file chips */
+.chips{
+  position:relative;height:0;
+  display:flex;justify-content:center;gap:16px;
+  margin-top:54px;flex-wrap:wrap;
+}
+.chip{
+  display:inline-flex;align-items:center;gap:9px;
+  padding:11px 18px;border-radius:14px;
+  background:var(--card);border:1px solid var(--line);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  box-shadow:var(--shadow-sm);
+  font-size:13.5px;font-weight:700;color:var(--ink-2);
+  will-change:transform;
+}
+.chip i{font-style:normal;font-size:16px}
+
+/* stats strip */
+.stats{
+  margin-top:84px;
+  display:grid;grid-template-columns:repeat(4,1fr);
+  gap:1px;background:var(--line);border:1px solid var(--line);
+  border-radius:var(--r-lg);overflow:hidden;
+  box-shadow:var(--shadow);
+}
+.stat{
+  background:rgba(255,255,255,.86);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  padding:30px 22px;text-align:center;
+}
+.stat .num{
+  font-size:clamp(26px,3.4vw,38px);font-weight:800;letter-spacing:-.03em;line-height:1;
+  background:var(--grad);-webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+  font-variant-numeric:tabular-nums;
+}
+.stat .num .unit{font-size:.5em;margin-left:2px;-webkit-text-fill-color:var(--muted-2);color:var(--muted-2)}
+.stat .lbl{margin-top:10px;font-size:13px;color:var(--muted);font-weight:600}
+
+.scroll-cue{
+  margin:64px auto 0;width:26px;height:42px;border-radius:14px;
+  border:2px solid rgba(15,35,70,.16);position:relative;
+}
+.scroll-cue::after{
+  content:"";position:absolute;left:50%;top:8px;
+  width:4px;height:8px;margin-left:-2px;border-radius:2px;
+  background:var(--violet);
+  animation:cue 1.9s var(--ease-io) infinite;
+}
+@keyframes cue{0%{transform:translateY(0);opacity:0}30%{opacity:1}70%{transform:translateY(14px);opacity:0}100%{opacity:0}}
+
+/* ============================================================
+   Problem cards
+   ============================================================ */
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:52px}
+
+.pcard{
+  position:relative;overflow:hidden;
+  background:var(--card);border:1px solid var(--line);
+  border-radius:var(--r-lg);padding:30px 28px;
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  box-shadow:var(--shadow-sm);
+  transition:transform .4s var(--ease-out),box-shadow .4s var(--ease-out),border-color .4s var(--ease);
+}
+.pcard::before{
+  content:"";position:absolute;left:0;right:0;top:0;height:3px;
+  background:var(--grad);opacity:0;transition:opacity .4s var(--ease);
+}
+@media (hover:hover) and (pointer:fine){
+  .pcard:hover{transform:translateY(-6px);box-shadow:var(--shadow-lg);border-color:rgba(139,92,246,.28)}
+  .pcard:hover::before{opacity:1}
+}
+.pcard .tag{
+  width:44px;height:44px;border-radius:14px;display:grid;place-items:center;
+  font-size:20px;margin-bottom:18px;
+  background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.16);
+}
+.pcard.warn .tag{background:rgba(245,158,11,.12);border-color:rgba(245,158,11,.22)}
+.pcard.risk .tag{background:rgba(244,63,94,.1);border-color:rgba(244,63,94,.2)}
+.pcard h3{margin:0 0 10px;font-size:18px;font-weight:750;letter-spacing:-.015em}
+.pcard p{margin:0;font-size:14.5px;color:var(--muted);line-height:1.8}
+.pcard .strike{
+  display:inline-block;position:relative;color:var(--muted-2);
+}
+.pcard .strike::after{
+  content:"";position:absolute;left:0;right:0;top:52%;height:1.5px;
+  background:rgba(244,63,94,.55);transform:scaleX(0);transform-origin:0 50%;
+  transition:transform .7s var(--ease-out) .3s;
+}
+.pcard.in .strike::after{transform:scaleX(1)}
+
+/* featured wide case card */
+.pcard.feature{
+  grid-column:1 / -1;
+  display:grid;grid-template-columns:1.06fr .94fr;
+  gap:40px;align-items:center;
+  padding:34px 36px;
+  background:linear-gradient(140deg,rgba(255,255,255,.86),rgba(243,246,255,.78));
+  border-color:rgba(139,92,246,.2);
+}
+.pcard.feature::before{opacity:.65}
+.pcard.feature .tag{
+  background:linear-gradient(140deg,rgba(139,92,246,.16),rgba(34,211,238,.16));
+  border-color:rgba(139,92,246,.24);
+}
+.pcard.feature h3{font-size:20px;margin-bottom:12px}
+.pcard.feature p{font-size:14.8px}
+.pcard.feature .sub-note{
+  margin-top:14px;font-size:13px;color:var(--muted-2);
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+}
+.pcard.feature .sub-note code{font-size:12px}
+
+.ind-list{display:grid;gap:9px}
+.ind{
+  display:flex;align-items:center;gap:12px;
+  padding:11px 14px;border-radius:12px;
+  background:rgba(255,255,255,.8);border:1px solid var(--line);
+  transition:transform .35s var(--ease-out),border-color .35s var(--ease),background-color .35s var(--ease);
+}
+@media (hover:hover) and (pointer:fine){
+  .ind:hover{transform:translateX(4px);border-color:rgba(139,92,246,.32);background:#fff}
+}
+.ind i{flex:none;font-style:normal;font-size:15px;line-height:1}
+.ind b{
+  flex:none;font-size:11px;font-weight:800;letter-spacing:.05em;
+  padding:4px 9px;border-radius:7px;
+  color:#1d4ed8;background:rgba(59,130,246,.11);white-space:nowrap;
+}
+.ind span{font-size:13.2px;font-weight:600;color:var(--muted);line-height:1.5}
+
+.callout{
+  margin-top:40px;padding:26px 32px;border-radius:var(--r);
+  background:linear-gradient(120deg,rgba(59,130,246,.08),rgba(139,92,246,.08) 55%,rgba(34,211,238,.08));
+  border:1px solid rgba(139,92,246,.16);
+  font-size:clamp(16px,2vw,20px);font-weight:700;letter-spacing:-.015em;
+  text-align:center;line-height:1.7;color:var(--ink-2);
+}
+
+/* ============================================================
+   Demo — 等长替换
+   ============================================================ */
+.demo-grid{
+  display:grid;grid-template-columns:.86fr 1.14fr;gap:60px;align-items:start;margin-top:56px;
+}
+.demo-side{position:sticky;top:118px}
+.split{display:grid;gap:14px;margin-top:34px}
+.split li{
+  list-style:none;display:flex;gap:14px;align-items:flex-start;
+  font-size:14.5px;color:var(--muted);line-height:1.75;
+}
+.split b{color:var(--ink-2)}
+.split .dot{
+  flex:none;width:26px;height:26px;border-radius:9px;margin-top:2px;
+  display:grid;place-items:center;font-size:12px;font-weight:800;color:#fff;
+  background:var(--grad);
+  box-shadow:0 6px 14px -8px rgba(99,102,241,.9);
+}
+
+.doc-stack{display:grid;gap:18px}
+
+.doc{
+  background:var(--card-solid);
+  border:1px solid var(--line);
+  border-radius:var(--r);
+  box-shadow:var(--shadow);
+  overflow:hidden;
+}
+.doc-bar{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,#fbfcff,#f5f8ff);
+}
+.doc-dots{display:flex;gap:5px}
+.doc-dots i{width:9px;height:9px;border-radius:50%;background:#e2e8f4;display:block}
+.doc-dots i:first-child{background:#ffd0d0}
+.doc-dots i:nth-child(2){background:#ffe8c2}
+.doc-dots i:nth-child(3){background:#cdf0dd}
+.doc-name{
+  font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.01em;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.doc-state{
+  margin-left:auto;flex:none;
+  font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
+  padding:4px 10px;border-radius:999px;
+}
+.doc-state.raw{color:#b45309;background:rgba(245,158,11,.12)}
+.doc-state.enc{color:#047857;background:rgba(52,211,153,.14)}
+.doc-body{
+  padding:24px 26px 28px;
+  font-size:14.5px;line-height:2.05;color:#33415c;
+}
+.doc-body .meta{font-size:12.5px;color:var(--muted-2);letter-spacing:.04em;margin-bottom:10px}
+.doc-body p{margin:0 0 12px}
+.doc-body p:last-child{margin-bottom:0}
+
+.w{
+  border-radius:6px;padding:1px 5px;font-weight:700;
+  transition:background-color .5s var(--ease),color .5s var(--ease);
+}
+.raw .w,.doc:not(.is-enc) .w{
+  color:#b91c1c;background:rgba(244,63,94,.1);
+  box-shadow:inset 0 -2px 0 rgba(244,63,94,.35);
+}
+.w.enc{
+  font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  letter-spacing:.02em;
+  color:#047857;background:rgba(52,211,153,.14);
+  box-shadow:inset 0 -2px 0 rgba(52,211,153,.4);
+}
+.doc-body .note{
+  margin-top:16px;padding-top:14px;border-top:1px dashed var(--line-2);
+  font-size:12.5px;color:var(--muted-2);
+}
+
+.demo-arrow{
+  display:grid;place-items:center;gap:8px;padding:4px 0;
+}
+.demo-arrow .lbl{
+  font-size:12px;font-weight:800;letter-spacing:.14em;color:var(--violet);
+}
+.demo-arrow .line{
+  width:2px;height:34px;border-radius:2px;
+  background:linear-gradient(180deg,rgba(139,92,246,.1),#8b5cf6,rgba(34,211,238,.2));
+  background-size:100% 220%;
+  animation:flow 2.4s linear infinite;
+}
+@keyframes flow{to{background-position:0 -220%}}
+
+.demo-badge{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  margin-top:6px;padding:14px 18px;border-radius:14px;
+  background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.2);
+  font-size:13px;color:#065f46;font-weight:650;
+}
+.demo-badge .dotpulse{
+  width:8px;height:8px;border-radius:50%;background:#10b981;flex:none;
+  box-shadow:0 0 0 0 rgba(16,185,129,.6);
+  animation:ping 1.9s var(--ease-out) infinite;
+}
+@keyframes ping{
+  0%{box-shadow:0 0 0 0 rgba(16,185,129,.5)}
+  100%{box-shadow:0 0 0 12px rgba(16,185,129,0)}
+}
+.replay{
+  margin-left:auto;flex:none;
+  padding:6px 14px;border-radius:999px;cursor:pointer;
+  font-size:12px;font-weight:800;color:#047857;
+  background:#fff;border:1px solid rgba(52,211,153,.35);
+  transition:transform .18s var(--ease-out),background-color .25s var(--ease);
+}
+.replay:active{transform:scale(.94)}
+@media (hover:hover) and (pointer:fine){.replay:hover{background:rgba(52,211,153,.12)}}
+
+/* ============================================================
+   Features
+   ============================================================ */
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:52px}
+.fcard{
+  position:relative;overflow:hidden;
+  padding:28px 24px;border-radius:var(--r-lg);
+  background:var(--card);border:1px solid var(--line);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  box-shadow:var(--shadow-sm);
+  transition:transform .4s var(--ease-out),box-shadow .4s var(--ease-out),border-color .4s var(--ease);
+}
+.fcard .glow{
+  position:absolute;inset:-40% -40% auto auto;
+  width:200px;height:200px;border-radius:50%;
+  background:radial-gradient(circle,rgba(139,92,246,.28),transparent 70%);
+  opacity:0;transition:opacity .5s var(--ease);
+  pointer-events:none;
+}
+@media (hover:hover) and (pointer:fine){
+  .fcard:hover{transform:translateY(-8px);box-shadow:var(--shadow-lg);border-color:rgba(59,130,246,.28)}
+  .fcard:hover .glow{opacity:1}
+}
+.fcard .ico{
+  width:50px;height:50px;border-radius:16px;display:grid;place-items:center;
+  font-size:23px;margin-bottom:20px;
+  background:linear-gradient(140deg,rgba(59,130,246,.14),rgba(139,92,246,.14));
+  border:1px solid rgba(139,92,246,.18);
+}
+.fcard h3{margin:0 0 10px;font-size:16.5px;font-weight:750;letter-spacing:-.015em}
+.fcard p{margin:0;font-size:13.8px;color:var(--muted);line-height:1.82}
+
+/* ============================================================
+   Architecture — two flows
+   ============================================================ */
+.flows{display:grid;gap:22px;margin-top:52px}
+.flow{
+  padding:30px;border-radius:var(--r-lg);
+  background:var(--card);border:1px solid var(--line);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  box-shadow:var(--shadow-sm);
+}
+.flow-head{
+  display:flex;align-items:center;gap:10px;margin-bottom:22px;
+  font-size:14px;font-weight:800;letter-spacing:.02em;
+}
+.flow-head .pill{
+  font-size:11px;font-weight:800;letter-spacing:.1em;
+  padding:4px 10px;border-radius:999px;
+}
+.flow.a .pill{color:#1d4ed8;background:rgba(59,130,246,.12)}
+.flow.b .pill{color:#6d28d9;background:rgba(139,92,246,.12)}
+
+.chain{display:flex;align-items:stretch;gap:14px;flex-wrap:wrap}
+.node{
+  flex:1 1 150px;min-width:140px;
+  padding:18px 16px;border-radius:16px;
+  background:#fff;border:1px solid var(--line);
+  box-shadow:var(--shadow-sm);
+  transition:transform .35s var(--ease-out),border-color .35s var(--ease);
+}
+@media (hover:hover) and (pointer:fine){.node:hover{transform:translateY(-4px);border-color:rgba(59,130,246,.3)}}
+.node .k{font-size:11px;font-weight:800;letter-spacing:.12em;color:var(--muted-2)}
+.node .v{margin-top:7px;font-size:14px;font-weight:700;color:var(--ink-2);line-height:1.55}
+.node.mono .v{font-family:"SFMono-Regular",Consolas,Menlo,monospace;font-size:12.5px;word-break:break-all}
+.node.hl{background:linear-gradient(140deg,rgba(59,130,246,.08),rgba(139,92,246,.08));border-color:rgba(139,92,246,.22)}
+.node.vhl{background:linear-gradient(140deg,rgba(139,92,246,.08),rgba(34,211,238,.08));border-color:rgba(139,92,246,.22)}
+.arrow{
+  flex:none;display:grid;place-items:center;color:#a9b8d0;font-size:16px;
+  min-width:22px;
+}
+
+.note-strip{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:34px;
+}
+.ns{
+  padding:18px 20px;border-radius:16px;
+  background:rgba(255,255,255,.7);border:1px dashed var(--line-2);
+  font-size:13.5px;color:var(--muted);line-height:1.7;
+}
+.ns b{display:block;color:var(--ink-2);font-size:14px;margin-bottom:4px}
+
+/* ============================================================
+   Steps timeline
+   ============================================================ */
+.steps{position:relative;margin-top:56px}
+.steps-rail{
+  position:absolute;left:25px;top:12px;bottom:12px;width:2px;
+  background:var(--line);border-radius:2px;overflow:hidden;
+}
+.steps-fill{
+  display:block;width:100%;height:100%;
+  transform:scaleY(0);transform-origin:50% 0;
+  background:var(--grad-line);
+  will-change:transform;
+}
+.step{display:flex;gap:26px;padding-bottom:26px}
+.step:last-child{padding-bottom:0}
+.step-dot{
+  flex:none;width:52px;height:52px;border-radius:18px;
+  display:grid;place-items:center;
+  font-size:15px;font-weight:800;letter-spacing:.01em;
+  color:#fff;background:var(--grad);
+  box-shadow:0 14px 30px -14px rgba(99,102,241,.95);
+  position:relative;z-index:1;
+  transition:transform .45s var(--ease-out);
+}
+.step-card{
+  flex:1;padding:26px 28px;border-radius:var(--r);
+  background:var(--card);border:1px solid var(--line);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  box-shadow:var(--shadow-sm);
+  transition:transform .4s var(--ease-out),box-shadow .4s var(--ease-out),border-color .4s var(--ease);
+}
+@media (hover:hover) and (pointer:fine){
+  .step-card:hover{transform:translateX(6px);box-shadow:var(--shadow);border-color:rgba(59,130,246,.26)}
+}
+.step-card h3{margin:0 0 8px;font-size:17px;font-weight:750;letter-spacing:-.015em}
+.step-card p{margin:0;font-size:14.3px;color:var(--muted);line-height:1.85}
+code{
+  font-family:"SFMono-Regular",Consolas,Menlo,monospace;font-size:.9em;
+  padding:2px 7px;border-radius:6px;
+  background:rgba(59,130,246,.09);color:#1d4ed8;
+}
+.tip{
+  display:inline-flex;align-items:center;gap:7px;
+  margin-top:13px;padding:6px 13px;border-radius:9px;
+  font-size:12.3px;font-weight:700;
+  color:#b45309;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.22);
+}
+.tip.ok{color:#047857;background:rgba(52,211,153,.1);border-color:rgba(52,211,153,.24)}
+
+/* ============================================================
+   Download CTA
+   ============================================================ */
+.cta-band{
+  position:relative;overflow:hidden;
+  border-radius:var(--r-lg);
+  padding:64px 40px;text-align:center;
+  background:linear-gradient(125deg,#1e3a8a 0%,#4c1d95 46%,#0e7490 100%);
+  box-shadow:var(--shadow-lg);
+}
+.cta-band::before{
+  content:"";position:absolute;inset:0;
+  background:
+    radial-gradient(60% 90% at 12% 8%, rgba(34,211,238,.4), transparent 62%),
+    radial-gradient(60% 90% at 92% 92%, rgba(139,92,246,.5), transparent 62%);
+  pointer-events:none;
+}
+.cta-band > *{position:relative}
+.cta-band h2{
+  margin:0;color:#fff;font-size:clamp(26px,3.6vw,40px);
+  letter-spacing:-.03em;font-weight:800;line-height:1.25;
+}
+.cta-band p{margin:16px auto 0;max-width:560px;color:rgba(226,235,255,.82);font-size:15.5px}
+.cta-band .btn-primary{
+  margin-top:32px;background:rgba(255,255,255,.96);color:#312e81;
+  box-shadow:0 22px 50px -18px rgba(0,0,0,.5);
+}
+@media (hover:hover) and (pointer:fine){
+  .cta-band .btn-primary:hover{background:#fff;box-shadow:0 30px 60px -20px rgba(0,0,0,.6)}
+}
+.cta-meta{
+  margin-top:16px;font-size:12.5px;color:rgba(200,215,255,.7);
+  display:flex;gap:18px;justify-content:center;flex-wrap:wrap;
+}
+
+/* ============================================================
+   Final grid — 下载与支持并列
+   ============================================================ */
+.final-grid{
+  display:grid;
+  grid-template-columns:1.1fr .9fr;
+  gap:24px;
+  align-items:stretch;
+}
+.cta-band.fill{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  height:100%;padding:56px 42px;text-align:center;
+}
+.cta-band.fill .cta-band-in{display:flex;flex-direction:column;align-items:center}
+.cta-band.fill h2{font-size:clamp(22px,2.6vw,30px)}
+.cta-band.fill p{font-size:14.6px;margin-top:14px}
+.cta-band.fill .btn-primary{margin-top:26px;padding:15px 30px;font-size:15px}
+.cta-band.fill .cta-meta{margin-top:22px;gap:14px;font-size:12px}
+
+/* ============================================================
+   Support + License
+   ============================================================ */
+.license-cols{display:grid;grid-template-columns:1fr 1fr;gap:0 48px;align-items:start}
+.license-cols .lb:last-child{margin-bottom:0}
+
+.donate-card,.license-card{
+  padding:34px;border-radius:var(--r-lg);
+  background:var(--card);border:1px solid var(--line);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  box-shadow:var(--shadow-sm);
+}
+.donate-card{text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.donate-card.standalone{
+  height:100%;padding:40px 34px;
+  background:linear-gradient(155deg,rgba(255,255,255,.94),rgba(240,246,255,.86));
+}
+.donate-card.standalone .qr{width:186px;height:186px}
+.donate-card.standalone h3{font-size:18px}
+.coffee{
+  width:64px;height:64px;border-radius:22px;display:grid;place-items:center;
+  font-size:30px;margin-bottom:18px;
+  background:linear-gradient(140deg,rgba(245,158,11,.16),rgba(244,63,94,.14));
+  border:1px solid rgba(245,158,11,.24);
+  animation:coffeePulse 3.2s var(--ease-io) infinite;
+}
+@keyframes coffeePulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+.donate-card h3{margin:0 0 10px;font-size:19px;font-weight:750}
+.donate-card p{margin:0 0 24px;font-size:14px;color:var(--muted);line-height:1.8}
+.qr{
+  width:206px;height:206px;border-radius:18px;padding:12px;
+  background:#fff;border:1px solid var(--line);
+  box-shadow:var(--shadow);
+  display:grid;place-items:center;
+}
+.qr img{width:100%;height:100%;object-fit:contain;border-radius:10px}
+.qr .qr-ph{
+  display:none;place-items:center;text-align:center;
+  font-size:13px;font-weight:700;color:var(--muted);
+  line-height:1.6;width:100%;height:100%;
+  border-radius:10px;border:1.5px dashed var(--line-2);
+  background:repeating-linear-gradient(45deg,#fafcff,#fafcff 8px,#f3f7ff 8px,#f3f7ff 16px);
+}
+.qr .qr-ph span{display:block;font-size:11px;font-weight:600;color:var(--muted-2);margin-top:4px}
+.qr-label{margin-top:14px;font-size:12.5px;color:var(--muted-2)}
+
+.license-card h3{
+  margin:0 0 22px;padding-bottom:16px;border-bottom:1px solid var(--line);
+  font-size:18px;font-weight:750;
+}
+.lb{margin-bottom:22px}
+.lb:last-child{margin-bottom:0}
+.lb h4{
+  margin:0 0 9px;font-size:14.5px;font-weight:750;
+  display:flex;align-items:center;gap:8px;color:var(--ink-2);
+}
+.lb.free h4{color:#047857}
+.lb.biz h4{color:#b45309}
+.lb.ban h4{color:#be123c}
+.lb p,.lb li{margin:0;font-size:13.4px;color:var(--muted);line-height:1.8}
+.lb ul{margin:0;padding-left:18px}
+.lb li{margin-bottom:5px}
+.lb li::marker{color:var(--muted-2)}
+
+.contact-box{
+  margin-top:8px;padding:20px 22px;border-radius:16px;text-align:center;
+  background:linear-gradient(120deg,rgba(59,130,246,.09),rgba(139,92,246,.09));
+  border:1px solid rgba(139,92,246,.18);
+}
+.contact-box p{margin:0;font-size:13.6px;color:var(--ink-2);line-height:1.85}
+.contact-box a{color:var(--blue);font-weight:750;text-decoration:none}
+@media (hover:hover) and (pointer:fine){.contact-box a:hover{text-decoration:underline}}
+.contact-box .hint{display:block;margin-top:8px;font-size:11.8px;color:var(--muted-2)}
+
+/* ============================================================
+   Footer
+   ============================================================ */
+footer{
+  border-top:1px solid var(--line);
+  padding:44px 0 52px;margin-top:24px;
+  background:rgba(255,255,255,.5);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+}
+.foot-inner{
+  max-width:var(--maxw);margin:0 auto;padding:0 24px;
+  display:flex;align-items:center;justify-content:space-between;gap:20px;flex-wrap:wrap;
+}
+.foot-inner p{margin:0;font-size:13px;color:var(--muted)}
+.foot-inner a{color:var(--muted-2);text-decoration:none;font-weight:650}
+@media (hover:hover) and (pointer:fine){.foot-inner a:hover{color:var(--blue)}}
+.foot-small{font-size:11.8px;color:var(--muted-2);text-align:center;margin-top:16px!important;width:100%}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width:1024px){
+  .demo-grid{grid-template-columns:1fr;gap:40px}
+  .demo-side{position:static}
+  .grid-4{grid-template-columns:repeat(2,1fr)}
+  .final-grid{grid-template-columns:1fr}
+  .license-cols{grid-template-columns:1fr;gap:0}
+  .cta-band.fill{padding:52px 32px}
+}
+@media (max-width:960px){
+  .nav-links{display:none}
+}
+@media (max-width:860px){
+  .section{padding:78px 0}
+  .hero{padding:132px 0 72px}
+  .grid-3{grid-template-columns:1fr;gap:16px}
+  .stats{grid-template-columns:repeat(2,1fr)}
+  .note-strip{grid-template-columns:1fr}
+  .chain{flex-direction:column}
+  .arrow{transform:rotate(90deg);min-height:24px;width:100%}
+  .callout{text-align:left;padding:22px 24px}
+  .pcard.feature{grid-template-columns:1fr;gap:26px;padding:28px 24px}
+}
+@media (max-width:560px){
+  .wrap,.nav-inner,.foot-inner{padding:0 18px}
+  .grid-4{grid-template-columns:1fr}
+  .stats{grid-template-columns:1fr 1fr}
+  .step{gap:16px}
+  .step-dot{width:44px;height:44px;border-radius:15px;font-size:13.5px}
+  .steps-rail{left:21px}
+  .step-card{padding:20px}
+  .doc-body{padding:20px;font-size:13.6px;line-height:1.95}
+  .cta-band{padding:48px 22px}
+  .donate-card,.license-card{padding:26px}
+  .foot-inner{justify-content:center;text-align:center}
+}
+
+/* ============================================================
+   Reduced motion — keep opacity, drop movement
+   ============================================================ */
+@media (prefers-reduced-motion: reduce){
+  html{scroll-behavior:auto}
+  .blob,.coffee,.scroll-cue::after,.demo-arrow .line,.demo-badge .dotpulse,
+  .nav-links a.nav-donate::before{animation:none!important}
+  .hero h1 .line>span{animation:none!important;transform:none!important}
+  .fade-up{animation:none!important;opacity:1!important;transform:none!important}
+  [data-reveal]{transform:none!important;filter:none!important;transition:opacity .25s linear!important}
+  [data-reveal].in{opacity:1}
+  .pcard .strike::after{transition:none!important}
+}
+</style>
 </head>
-<body>
+<body data-page-node-id="NaDsp6ephIDGSav241Bdih">
 
-    <!-- 导航栏 -->
-    <nav>
-        <div class="nav-inner">
-            <a href="#" class="logo">Office敏感词加解密工具</a>
-            <ul class="nav-links">
-                <li><a href="#download">下载</a></li>
-                <li><a href="#donate">捐赠</a></li>
-                <li><a href="#copyright">版权</a></li>
-                <li><a href="#guide">使用说明</a></li>
+<!-- ambient background -->
+<div class="bg" aria-hidden="true" data-page-node-id="Jb7Gt3tIW5FptRrsxufm2i">
+  <span class="blob b1" data-page-node-id="2bupJ1oBT8dZ086bV0O5Gy"></span>
+  <span class="blob b2" data-page-node-id="pxeKFHWzu4WQkslUSJwiGx"></span>
+  <span class="blob b3" data-page-node-id="KjsuUmckXj7FIFHGDXD4uA"></span>
+  <span class="blob b4" data-page-node-id="zDWmLaV1MMcQtaS9PA3yYr"></span>
+</div>
+
+<!-- scroll progress -->
+<div class="progress" aria-hidden="true" data-page-node-id="LcaXhs04BGe4Ix145VGIXY"><i data-page-node-id="QM9bNrt5vGHGcL9hh2MhOx"></i></div>
+
+<!-- nav -->
+<nav class="nav" id="nav" data-page-node-id="09Wz3UjWBikla2cGrayDyC">
+  <div class="nav-inner" data-page-node-id="6Z2Q1B2POwg7y7e9HqHhEU">
+    <a href="#top" class="logo" data-page-node-id="NHJ1tSHrZPHDCPFm0aw2Y2">
+      <span class="mark" data-page-node-id="xiE6JkUUFeeZhalpCk4DUi">🔐</span>
+      <span data-page-node-id="D6gAPcFae6901QX6YUDoKz">Office 敏感词加解密工具<small data-page-node-id="F4PkoakZOtKc2tKHNqERPu">LOCAL · AES-256</small></span>
+    </a>
+    <ul class="nav-links" data-page-node-id="Dia52W4JCp4GvBrA4nkwOb">
+      <li data-page-node-id="cBbIeoWyiJOcpnSLAyhWDJ"><a href="#problem" data-page-node-id="pRSQRsjjGh5CxS8E6wO5jr">问题</a></li>
+      <li data-page-node-id="9u5IvvZRLLc2cNiJcDqQVJ"><a href="#how" data-page-node-id="mGUXu5NQQ5DVXmR5DXnwUg">原理</a></li>
+      <li data-page-node-id="vHh3N3oF461lL9EREUDG7y"><a href="#features" data-page-node-id="1NumsxQDhHQuCRmQ8oZtXp">特性</a></li>
+      <li data-page-node-id="thMm4jqGWYXGg7eY4MTBr0"><a href="#arch" data-page-node-id="Ek2wXC4K0XfOUVUKRuGFpL">架构</a></li>
+      <li data-page-node-id="wsdZ94meACGUf3PxLecFN2"><a href="#guide" data-page-node-id="EfYdqz1Zd320fW6pH3oa27">流程</a></li>
+      <li data-page-node-id="navLicense01"><a href="#license" data-page-node-id="navLicense02">版权</a></li>
+      <li data-page-node-id="navDonate01"><a href="#donate" class="nav-donate" data-page-node-id="navDonate02">捐赠</a></li>
+    </ul>
+    <a href="#download" class="nav-cta" data-page-node-id="lqXCFT5naDOrd2QhoTVRjb">下载 v2.2</a>
+  </div>
+</nav>
+
+<main id="top" data-page-node-id="IVhPUoLoTrlqLkbIZPo6rn">
+
+  <!-- ===================== HERO ===================== -->
+  <header class="hero" data-page-node-id="ro6vNP6TqrHZiZLjjJ7E91">
+    <div class="wrap" data-page-node-id="sk6yuz1JcR2rijGjwMeXlj">
+      <div class="eyebrow fade-up" style="--d:0ms" data-page-node-id="Nm8yEesbmfxWyOCc80f6GG">🔒 v2.2 · Windows 原生 · 纯本地运行</div>
+
+      <h1 data-page-node-id="XUlo2rG9CTrnoEvTOTGGRj">
+        <span class="line" data-page-node-id="wLJQvSK9XoOiC5whaFGEKn"><span data-page-node-id="LcuPoHIFS4ar7aNyQdLRfG">让敏感词，</span></span>
+        <span class="line" data-page-node-id="hEhi2KHMXaAjpwGkECrnz4"><span class="gt" data-page-node-id="wuNltcxCcYhduIXltEyRXd">在文档里隐形</span></span>
+      </h1>
+
+      <p class="sub fade-up" style="--d:420ms" data-page-node-id="nVyvcCQ8uA62d85XmdFXGZ">
+        一键对 <b data-page-node-id="ofTnkVwdNa3jxvANj6tGNL">Word</b>、<b data-page-node-id="1BDQIqlEP7NYgaykkZOogO">Excel</b>、<b data-page-node-id="XkUZgSXbzLsFEvxZJZbUeT">PowerPoint</b> 中的敏感词汇做等长英文字符替换加密，
+        词表由 <b data-page-node-id="UBsH6zJWhrCowCB843ElWe">AES-256</b> 独立保护。文档照常流转，排版分毫不差，需要时凭密码一键还原。
+      </p>
+
+      <div class="cta-row fade-up" style="--d:520ms" data-page-node-id="yIl74FJnPAIbm6f6esbhK4">
+        <a href="#download" class="btn btn-primary" download data-page-node-id="n0y6V7osccgrvPm4m0G9sW">⬇️ 下载程序 (v2.2)</a>
+        <a href="#how" class="btn btn-ghost" data-page-node-id="6LRJXZ0Nx8kRUag4NcR55H">看它怎么工作 ↓</a>
+      </div>
+      <p class="hero-note fade-up" style="--d:600ms" data-page-node-id="WJ4Zq2li5wjsOJTHOFmi41">下载后可直接运行 · 无需安装 · 不联网</p>
+
+      <div class="chips fade-up" style="--d:680ms" data-page-node-id="JIQDlWxtDVMpx9EiFAgvPV">
+        <span class="chip" data-float="1" data-page-node-id="T93otXpFPiSa8N2FYBUGvo"><i data-page-node-id="RShXw9sUjEWnwUgAYLVleI">📄</i>Word .docx</span>
+        <span class="chip" data-float="2" data-page-node-id="SDSwbSwAE0SZVtCdbr7yCH"><i data-page-node-id="M0V5f8Jq26Bbj7N8LxcQ2G">📊</i>Excel .xlsx</span>
+        <span class="chip" data-float="3" data-page-node-id="7jGvRkKbJ2W8Dw9BKnHe03"><i data-page-node-id="Cwg1HreY3uEwNvljhMUc4f">🎬</i>PowerPoint .pptx</span>
+      </div>
+
+      <div class="stats fade-up" style="--d:760ms" data-page-node-id="azu2g1DE3Br4qkdFxg1KqE">
+        <div class="stat" data-page-node-id="7R4hH5mM7VZtVUwgPgxRHj"><div class="num" data-page-node-id="ZDtCITzi7w4u22aODDyRX1"><span data-count="3" data-page-node-id="Vy7u9vC3dvcHzQ61r3jnND">0</span></div><div class="lbl" data-page-node-id="4aTiWkuvTnc38ROcSDPag6">种 Office 格式支持</div></div>
+        <div class="stat" data-page-node-id="8wAgVFfFfQkA7JxQ4AkEBL"><div class="num" data-page-node-id="zQm7OAkMMLKKMk7dPg0Dm1"><span data-count="100" data-page-node-id="zdAuI7alpOMOYccQIIaJ2r">0</span><span class="unit" data-page-node-id="ytgJhivc5ZxaRQbinr5n5U">%</span></div><div class="lbl" data-page-node-id="Aon67t9YDGwObuUUmY0ri5">排版与打印效果保持</div></div>
+        <div class="stat" data-page-node-id="qQH6qCa896EwwaUZLbgrDR"><div class="num" data-page-node-id="EmzVAUYWjDrXucOKZk5DGK"><span data-count="256" data-page-node-id="cQK3woXIYDoe62K28ltwgb">0</span><span class="unit" data-page-node-id="nc1w3y3qGWpQMcpPVD54R3">位</span></div><div class="lbl" data-page-node-id="RSVBiuhkPYhJ4muAsMT25M">AES 词表加密强度</div></div>
+        <div class="stat" data-page-node-id="zYvQ4JvZZiol153HQgNaXx"><div class="num" data-page-node-id="SjXensNNHTm2rWzhOSs75e"><span data-count="0" data-page-node-id="yIta48FYBqQOiAnjd0bkXv">0</span></div><div class="lbl" data-page-node-id="MDObTnV7sIGHYQUhQsWAaE">数据上传云端</div></div>
+      </div>
+
+      <div class="scroll-cue fade-up" style="--d:900ms" aria-hidden="true" data-page-node-id="KlN5mr0ni5FWVnn2TwH0wT"></div>
+    </div>
+  </header>
+
+  <!-- ===================== 01 PROBLEM ===================== -->
+  <section class="section" id="problem" data-page-node-id="eUxotEw7TUG3ey1g5fjSwe">
+    <div class="wrap" data-page-node-id="rn35xs9AU0JeKlkLj7DH8h">
+      <div class="secno" data-reveal data-page-node-id="Ghvd4MMLuRoGlCpTGIDqAG">01 — 问题</div>
+      <h2 class="h" data-reveal style="--d:60ms" data-page-node-id="LOn4veHvCNyrw6kX3xoXMe">一份原稿流出去，<span class="gt" data-page-node-id="VZo737PGwqVtM80iixBw1q">底牌就全摊开了</span></h2>
+      <p class="lede" data-reveal style="--d:120ms" data-page-node-id="lm7HG0DF2lEMcmyjW65WEc">
+        你删掉了封面上的公司名，删掉了页眉里的项目代号，却删不掉正文里那些一望即知的字。
+      </p>
+
+      <div class="grid-3" data-page-node-id="Ji8eTry7fe4frZNLu4fEUY">
+        <article class="pcard" data-reveal style="--d:0ms" data-page-node-id="NhkXODqjcvAJcdFfYTgEVm">
+          <div class="tag warn" data-page-node-id="lCFkmEJArpqhLZELRyDIBL">📊</div>
+          <h3 data-page-node-id="y0QUCyr5uzPFc51EZxF38b">薪酬表发出去了</h3>
+          <p data-page-node-id="xrHqqbt5FuuKWXeyJaprQs">每个人的工资都躺在单元格里，<span class="strike" data-page-node-id="TplBJFYDpNfnMMAflWFK4I">隐藏行也隐藏不掉</span>。删一行、改个色、换个标签，都只是心理安慰。</p>
+        </article>
+        <article class="pcard risk" data-reveal style="--d:90ms" data-page-node-id="YF8DSADPrYe4le6xVEHa51">
+          <div class="tag risk" data-page-node-id="lLK4DhsOV4Vi1nhg9R71E9">📄</div>
+          <h3 data-page-node-id="0jOXvVtZN5MYijAKgyYU8u">投标文件对外提交</h3>
+          <p data-page-node-id="PdZIJ5qzAt36Jkv0z90LCD">报价口径、成本构成、供应商名单散落在正文段落中，竞争对手只要通读一遍，就等于拿到了你的定价逻辑。</p>
+        </article>
+        <article class="pcard" data-reveal style="--d:180ms" data-page-node-id="h1rApamln31qUAc2jjKMSa">
+          <div class="tag" data-page-node-id="pM7WDylBmUGue5FrAPgw2o">🆔</div>
+          <h3 data-page-node-id="SyREjMRCR5VNTKVQvOd1wO">客户名单在流转</h3>
+          <p data-page-node-id="UspOfZRlwoOEbv96gIwtEN">姓名、联系方式、账户信息直接写在表里。<span class="strike" data-page-node-id="sQEqG45J5olRZtwcr0HfNW">一次群发，一次协作转发</span>，就是一次不可追溯的泄露。</p>
+        </article>
+
+        <!-- featured case: industry-specific classified terms -->
+        <article class="pcard feature" data-reveal style="--d:240ms" data-page-node-id="pcaseIndustryWrap">
+          <div data-page-node-id="pcaseIndustryL">
+            <div class="tag" data-page-node-id="pcaseIndustryTag">🏭</div>
+            <h3 data-page-node-id="pcaseIndustryT">特定行业重要涉密词汇的保护</h3>
+            <p data-page-node-id="pcaseIndustryP">军工、金融、医疗、法律、政务等行业的文档里，真正致命的往往不是公司名，而是那些只有圈内人一眼就能看懂来路的专有术语。它们散落在正文段落、表格备注、批注与页脚之中 —— 一次对外发送、一次跨单位协作，就可能构成合规风险。</p>
+            <p class="sub-note" data-page-node-id="pcaseIndustryN">把行业术语整理成一份词表导入，之后每份文档都能一键复用 <code data-page-node-id="pcaseIndustryC">industry_vocab.json</code></p>
+          </div>
+          <div class="ind-list" data-page-node-id="pcaseIndustryR">
+            <div class="ind" data-page-node-id="ind01"><i data-page-node-id="ind01i">🛰️</i><b data-page-node-id="ind01b">军工装备</b><span data-page-node-id="ind01s">装备型号代号 · 研制批次 · 验收参数</span></div>
+            <div class="ind" data-page-node-id="ind02"><i data-page-node-id="ind02i">🏦</i><b data-page-node-id="ind02b">金融机构</b><span data-page-node-id="ind02s">监管口径 · 未披露财务数据 · 定价模型</span></div>
+            <div class="ind" data-page-node-id="ind03"><i data-page-node-id="ind03i">🩺</i><b data-page-node-id="ind03b">医疗健康</b><span data-page-node-id="ind03s">患者姓名 · 诊断结论 · 临床入组信息</span></div>
+            <div class="ind" data-page-node-id="ind04"><i data-page-node-id="ind04i">⚖️</i><b data-page-node-id="ind04b">法律政务</b><span data-page-node-id="ind04s">当事人信息 · 内部文号 · 会议纪要要点</span></div>
+          </div>
+        </article>
+      </div>
+
+      <div class="callout" data-reveal="scale" style="--d:120ms" data-page-node-id="eux9frX2jWMDIR7JfIalkz">
+        「敏感信息不在附件里，而在字里行间。」
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 02 HOW / DEMO ===================== -->
+  <section class="section" id="how" data-page-node-id="Rzpa8N6jmMDDZPF50Aj0Y9">
+    <div class="wrap" data-page-node-id="fNRRzt7ey2q6ieZahG73VS">
+      <div class="secno" data-reveal data-page-node-id="tkDlpoFcaxxB8tUTtDD1SQ">02 — 原理</div>
+      <h2 class="h" data-reveal style="--d:60ms" data-page-node-id="KwxYxB5pPGWl1YCbjyS7ld">等长替换：<span class="gt" data-page-node-id="yKqsL6XM00B7MsH3MQraJy">看得见的加密</span></h2>
+
+      <div class="demo-grid" data-page-node-id="vhq4NVL2TFQADqk11ZDh8K">
+        <div class="demo-side" data-page-node-id="VGLzbHWl59Ir8kWp4yX6C4">
+          <p class="lede" data-reveal style="--d:120ms;margin-top:0" data-page-node-id="x4LVxmnp7sxtWKVYWryKdv">
+            程序定位文档中的敏感词，将其替换为<b data-page-node-id="vgtmzc4nnOAToO3nMdCNyX">完全相同长度</b>的英文字符串。
+            字数不变、段落不变、分页不变 —— 打开还是那份文档，只是关键词已经认不出来。
+          </p>
+
+          <ul class="split" data-page-node-id="bz4DAcjMl3VzABizb2hb0d">
+            <li data-reveal="left" style="--d:160ms" data-page-node-id="UjzXlI8z3NbdLdDL8VciBk">
+              <span class="dot" data-page-node-id="02CTlH7sGhDv7yEmQlDxUQ">1</span>
+              <span data-page-node-id="RkT2ls0HQz5X3mkHeYo5oD"><b data-page-node-id="tlGcjnrjZu3nLBKWpSm3iA">定位敏感词</b><br data-page-node-id="fBp9E2xNBBhBpC0w99cwAE">按你自定义的词表逐项匹配，支持加载 / 保存 .json 词表复用。</span>
+            </li>
+            <li data-reveal="left" style="--d:220ms" data-page-node-id="5YHEFw4mR9EJNXABXeF2v9">
+              <span class="dot" data-page-node-id="fXUg9XQWKJlryI2mC4enqk">2</span>
+              <span data-page-node-id="A1F7wAnRmBYGHegd37e2xt"><b data-page-node-id="JAPWIGVKhjM3EPasd9bJcI">等长英文字符替换</b><br data-page-node-id="vAmoQRb7h4nGtDAzrtcGdC">「薪酬」→ <code data-page-node-id="8yt6QQC2FSKHnpQREGoHGB">Qx</code>，长度差为 0，版式零位移。</span>
+            </li>
+            <li data-reveal="left" style="--d:280ms" data-page-node-id="y2SG1CUONz7vCxaQdue4By">
+              <span class="dot" data-page-node-id="fvcQzaq3hfY8iL9whOm23n">3</span>
+              <span data-page-node-id="H8MWhIAVJcewvk87HMqIbe"><b data-page-node-id="yLLNIFWhPrNMuTGkCb9XKG">零宽空格标记</b><br data-page-node-id="h1KVSO15JufVkg0kdD0tmD">给替换结果打上隐形标记，确保不会误伤文档中原本就存在的正常英文。</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="doc-stack" id="demo" data-page-node-id="D1iHJgyTnXmiMVbiOqKOp8">
+
+          <!-- before -->
+          <article class="doc raw" data-reveal="right" style="--d:100ms" data-page-node-id="kQnmlgiJYF5FBqK4WvT7ML">
+            <div class="doc-bar" data-page-node-id="AhNPw65Je03zJuFqyTwjky">
+              <span class="doc-dots" data-page-node-id="BdLhFqllQXWHF3cafjE3aA"><i data-page-node-id="ibuP2FWMSBlYFiDx3BPHw2"></i><i data-page-node-id="i9AmvfZ4QAHeeBwtFLh0PQ"></i><i data-page-node-id="HJhcfTyEcPmJleXXpsrfsj"></i></span>
+              <span class="doc-name" data-page-node-id="ADsiXCBTxRkXTNcVt8BK6C">2026年度人才盘点_内部.docx</span>
+              <span class="doc-state raw" data-page-node-id="iMv3SKGAVLClc9MEBl4Dcw">加密前</span>
+            </div>
+            <div class="doc-body" data-page-node-id="ofHY6AwOsOIuhknEHL2p9K">
+              <div class="meta" data-page-node-id="HfD5nwFQFt6Zjcb3GmL5wu">2026 年度人才盘点（内部）</div>
+              <p data-page-node-id="XuY8X6FjVCthuxkQxiYf7Y">本次<span class="w" data-page-node-id="gdmKneDEwbtBNwHsrUXDAw">薪酬</span>调整覆盖 3 个事业部，涉及核心<span class="w" data-page-node-id="peB9edl0Lo7y6Xi5WZnMJz">机密</span>数据。</p>
+              <p data-page-node-id="wbofgH1HISU8hCQCaFlI0V">客户联系人 <span class="w" data-page-node-id="wzzrTfbRQ5na7c6RbxIvFX">张三</span>，<span class="w" data-page-node-id="62agxMqq1850PEKTKpB8nF">身份证号</span>与<span class="w" data-page-node-id="8bNPvs0R5P49XzwPa5f407">银行卡号</span>见附表。</p>
+              <p data-page-node-id="Y6PMEKqzNkkmAsb0GksyNt"><span class="w" data-page-node-id="mHBCLVbFnkeAEWoSz7RD0x">薪酬</span>明细请勿外传。</p>
+            </div>
+          </article>
+
+          <!-- arrow -->
+          <div class="demo-arrow" aria-hidden="true" data-page-node-id="47soCHJY6wN8cSNHotUTra">
+            <span class="lbl" data-page-node-id="qC5ZUvbZaCLFRoPMhUVE6x">等长替换</span>
+            <span class="line" data-page-node-id="jzvYa1QvKb6J93xA41CbN3"></span>
+          </div>
+
+          <!-- after -->
+          <article class="doc is-enc" data-reveal="right" style="--d:180ms" data-page-node-id="Jg8QWzWACogpzBOMTgIvsk">
+            <div class="doc-bar" data-page-node-id="7Bec6A9ztQ9N3Ya449an9l">
+              <span class="doc-dots" data-page-node-id="WpAKXptI8c81lMAXrZFyDc"><i data-page-node-id="745TTY1JaHsG35GlBSlA7V"></i><i data-page-node-id="4iC4oZc8VssPVQFEqRh73G"></i><i data-page-node-id="A1UokzKCIUvaxDcz5qdjm6"></i></span>
+              <span class="doc-name" data-page-node-id="QaqXtooIufrT7CclJEIiys">2026年度人才盘点_encrypted.docx</span>
+              <span class="doc-state enc" data-page-node-id="s6ccsUOJS51HiqCPCTILLK">加密后</span>
+            </div>
+            <div class="doc-body" data-page-node-id="S5h0FrGB8aq4jCTAkPdxSQ">
+              <div class="meta" data-page-node-id="qgUIyQ84b32dFhF5kvS8zg">2026 年度人才盘点（内部）</div>
+              <p data-page-node-id="gtrcCBASpM4gcl4aPdGteS">本次<span class="w" data-cipher="Qx" data-page-node-id="e6ASwKTLDJ5eyd9uBkB6nz">薪酬</span>调整覆盖 3 个事业部，涉及核心<span class="w" data-cipher="Bz" data-page-node-id="bKhBNo8mM9U0GoqLR5kcUp">机密</span>数据。</p>
+              <p data-page-node-id="AF0z2KdykEoSQ9JwTIxxjW">客户联系人 <span class="w" data-cipher="Kj" data-page-node-id="Cey6zHZpHst2UF6e0dPgaL">张三</span>，<span class="w" data-cipher="JmWq" data-page-node-id="OmGAUj6YKU6JQsL4BHhHIr">身份证号</span>与<span class="w" data-cipher="Pk7t" data-page-node-id="clY1bZrMHezr02QCUHBrEJ">银行卡号</span>见附表。</p>
+              <p data-page-node-id="sSpUAIxtNv4LzRJSh9sCo7"><span class="w" data-cipher="Qx" data-page-node-id="RSe5Lsdx5xdsK9uXDWwIZ1">薪酬</span>明细请勿外传。</p>
+              <div class="note" data-page-node-id="mBnfbLXmq0BQODodOLKgmV">页面、段落、行距、打印分页与原文完全一致。</div>
+            </div>
+          </article>
+
+          <div class="demo-badge" data-reveal style="--d:220ms" data-page-node-id="BH0JRLZvPOszAwDTAXMq3B">
+            <span class="dotpulse" data-page-node-id="teWeprkGxKyKWjG7IlsOha"></span>
+            <span id="demoStat" data-page-node-id="Q6FLhjGfygBy6Jbof1BDIV">已保护 0 处敏感词 · 长度差 0</span>
+            <button class="replay" type="button" id="replay" data-page-node-id="lqNUupcAuwx1sFYgmDOAZU">重播演示</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 03 FEATURES ===================== -->
+  <section class="section" id="features" data-page-node-id="9G115oFKELgYBIaxDI8nZl">
+    <div class="wrap" data-page-node-id="hiXA5367EjPPRUIWbbRXBU">
+      <div class="secno" data-reveal data-page-node-id="jIkakVsxeFKgmzQF480E9Z">03 — 特性</div>
+      <h2 class="h" data-reveal style="--d:60ms" data-page-node-id="qxRiFQisexsjSPvQzKSGJT">四件事，<span class="gt" data-page-node-id="dLNdIOgVtpBi41ZwxdDzjl">做到位</span></h2>
+      <p class="lede" data-reveal style="--d:120ms" data-page-node-id="DuB2revETjUUfcKoNe7BYh">不是"加个密码"，而是让文档在保持可读、可打印、可流转的前提下完成脱敏。</p>
+
+      <div class="grid-4" data-page-node-id="jbVspYs51hf2C07uTwaA82">
+        <article class="fcard" data-reveal style="--d:0ms" data-page-node-id="H0pgo8cm8zCwprVbESAGW0">
+          <span class="glow" data-page-node-id="0vPl3kXVPbkLySgQs1FBh6"></span>
+          <div class="ico" data-page-node-id="tEiWd0DjJOnNv3Al0N2tzn">💻</div>
+          <h3 data-page-node-id="8HDg5khDk7RBgK2yIh7Eiw">纯本地运行</h3>
+          <p data-page-node-id="UsQhqYTY11aoLw1JrlQHnS">文档不上传云端，全程离线处理，彻底杜绝数据外泄风险，企业机密文档安全无忧。</p>
+        </article>
+        <article class="fcard" data-reveal style="--d:80ms" data-page-node-id="ifPwsqBDSZzunYhA0pA0iL">
+          <span class="glow" data-page-node-id="FDOvxCP1SAeGG8v9tCMtd9"></span>
+          <div class="ico" data-page-node-id="uVCZbD8jRajQB2oyBlza3f">🔄</div>
+          <h3 data-page-node-id="LErcJYB4G8J2juYGA8FrZB">可逆脱敏</h3>
+          <p data-page-node-id="pFuTShN9FKirNXz1kKjBAR">加密后的文档可正常流转，需要时通过配套词表与密码一键还原原文，100% 精准恢复。</p>
+        </article>
+        <article class="fcard" data-reveal style="--d:160ms" data-page-node-id="fHMuQUNzFgvxvGBV1PqiQC">
+          <span class="glow" data-page-node-id="WFqnRKT33LqmNQtkZclYWa"></span>
+          <div class="ico" data-page-node-id="qCYVmEAPxTury6pbQuZb65">📐</div>
+          <h3 data-page-node-id="cd7ea8lrqDBD6RGBCtSZhe">排版保持</h3>
+          <p data-page-node-id="D9h9chBU29ycGNrAjAUnKr">等长英文字符替换，格式、段落间距、打印效果完全不变，肉眼无法识别敏感位置。</p>
+        </article>
+        <article class="fcard" data-reveal style="--d:240ms" data-page-node-id="ohLgLJBGdkjTMBFBigLzay">
+          <span class="glow" data-page-node-id="0JTfmgtxFP7ukAZEcX9n1A"></span>
+          <div class="ico" data-page-node-id="KsfVesXHHjVMLAt4lnEVMG">🛡️</div>
+          <h3 data-page-node-id="YDEFiINhmyeZsMBzxn5Nw8">词表独立加密</h3>
+          <p data-page-node-id="FK6fCcTEXjgxtko7zfsXGE">映射关系采用 AES-256 加密保护，即使词表文件泄露，没有密码也无法破解原文。</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 04 ARCHITECTURE ===================== -->
+  <section class="section" id="arch" data-page-node-id="zeqMMEweAV0gScgJV7JcuN">
+    <div class="wrap" data-page-node-id="ZDtC1AGmJ93CLmDA7sEBNe">
+      <div class="secno" data-reveal data-page-node-id="MHgPa7sKJQvctbdNW6l42E">04 — 架构</div>
+      <h2 class="h" data-reveal style="--d:60ms" data-page-node-id="hoMnmckPik6BGLFoELYxQg">两个文件，<span class="gt" data-page-node-id="G7u6MDqo77Jcm8X6Q4uH9n">各管一半</span></h2>
+      <p class="lede" data-reveal style="--d:120ms" data-page-node-id="dpyNJF4Q4H4k9qATMyG2XM">
+        加密后你会得到两份产物。文档负责"能看"，词表负责"能还原" —— 分开保管，安全性翻倍。
+      </p>
+
+      <div class="flows" data-page-node-id="2cfuId3yPSVNQOAOJGWDIe">
+        <div class="flow a" data-reveal="left" data-page-node-id="slgTVYhUhjyxbQcHwhhHNN">
+          <div class="flow-head" data-page-node-id="YxMbOFOLzdkNZvijsAV0PK"><span class="pill" data-page-node-id="M7mq0LA7VaqOhLGWC3GVuY">DOC FLOW</span> 文档流 · 外观与原文一致</div>
+          <div class="chain" data-page-node-id="ddduOE61458Ephh4nYuN2Y">
+            <div class="node" data-page-node-id="IwLAIJqX7DMps3GThtIIZt"><div class="k" data-page-node-id="VUerqBOy2In3UzzPx2zOya">INPUT</div><div class="v" data-page-node-id="4YI0Hq6zXl0tZ36vjKkFmW">原始 Office 文档<br data-page-node-id="qytcPqiNaXfL608XRBgADU"><span style="font-weight:600;color:var(--muted)" data-page-node-id="nuHZs3kZYCbOrj940GiGoY">.docx / .xlsx / .pptx</span></div></div>
+            <div class="arrow" data-page-node-id="8zSsZ4ymKTzR70dP99xMt4">→</div>
+            <div class="node hl" data-page-node-id="biCqQEw62THiPmZdDrHAdz"><div class="k" data-page-node-id="tC8wqghLpcMQHB8mrlz1j6">PROCESS</div><div class="v" data-page-node-id="sw9ZV4jRoZ6FgkHhkKKsu8">等长英文字符替换<br data-page-node-id="BwBtmNKrGJ8eWia1OOrMrL"><span style="font-weight:600;color:var(--muted)" data-page-node-id="6qK8WZbg6Nv6VheplblJmO">字数、版式零变化</span></div></div>
+            <div class="arrow" data-page-node-id="mKMdC6nuabBbm7ZNYDwZZu">→</div>
+            <div class="node mono" data-page-node-id="PJHN72KKCphFoIv7cAICCO"><div class="k" data-page-node-id="Zgfvh13ajXwoCYZY99Mj1r">OUTPUT</div><div class="v" data-page-node-id="CtmQKCWcnPcdC8weHJxkHG">xxx_encrypted.docx</div></div>
+          </div>
+        </div>
+
+        <div class="flow b" data-reveal="left" style="--d:100ms" data-page-node-id="aP1wa52wy2aySLhrfE9Veo">
+          <div class="flow-head" data-page-node-id="evOZiG7sHrOS9InRUijYuT"><span class="pill" data-page-node-id="xUCqFXKMgVvoPpDxu6RpSU">KEY FLOW</span> 词表流 · 没有密码就打不开</div>
+          <div class="chain" data-page-node-id="KPUvEc6AlyMZEJjLWOs1hD">
+            <div class="node" data-page-node-id="EKg0GS2QpOImOEbNy7ilrR"><div class="k" data-page-node-id="r3hoyNCpiaOfSYNqZ5xYIc">INPUT</div><div class="v" data-page-node-id="iUv78ocvoe0cEqtNIGeEBc">敏感词映射表<br data-page-node-id="XsyTXnk6bQ0wLLiSGQTka5"><span style="font-weight:600;color:var(--muted)" data-page-node-id="YlvpdfK1z5Xwrm9gkbkN8c">自定义 .json 词表</span></div></div>
+            <div class="arrow" data-page-node-id="CogHW8BCpdixLxvj7kCxby">→</div>
+            <div class="node vhl" data-page-node-id="khyXRSigVNBYbmu9cBvGmy"><div class="k" data-page-node-id="EqFkCxLEH3hmVzpSI0S1Va">PROCESS</div><div class="v" data-page-node-id="neq3nvr1R1PRIwBWxjy5n9">AES-256 加密<br data-page-node-id="idI5VWlX5sRmQ0EtOaPzyF"><span style="font-weight:600;color:var(--muted)" data-page-node-id="SWnLgGVOXiHHLqKXJY1kns">密码即唯一凭证</span></div></div>
+            <div class="arrow" data-page-node-id="YnwSBDdak0IzCJhr7VSPlM">→</div>
+            <div class="node mono" data-page-node-id="9ysOz2bb3tASbyjBCcrOYK"><div class="k" data-page-node-id="ICdCWQjL5XCeYwPVBBTEgg">OUTPUT</div><div class="v" data-page-node-id="Rb7oo4xK2lYOLMFf8S6Sew">xxx_vocab.enc</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="note-strip" data-page-node-id="id1YMk0K1EBYOFL22lffnb">
+        <div class="ns" data-reveal style="--d:0ms" data-page-node-id="3pevLrY65NISsTkH6EjI7n"><b data-page-node-id="672CBWrXS0NAWnVE2krpm1">🗂️ 建议分开放</b>加密文档和 .enc 词表分开保管，仅拿到其中一份无法还原原文。</div>
+        <div class="ns" data-reveal style="--d:80ms" data-page-node-id="HqS9vTR4Dlzd6APS0Cr6YB"><b data-page-node-id="o3hJVE5QgFEk3IHAe6Zbbm">🔑 密码只有你知道</b>程序不存储、不上传、不收集密码，丢失后无法找回。</div>
+        <div class="ns" data-reveal style="--d:160ms" data-page-node-id="bkOK5GTV9FeGoXHwPydHyz"><b data-page-node-id="hWrNlxRMuh2LbpC8pE9PdH">♻️ 随时可逆</b>凭文档 + 词表 + 密码，一键恢复为原始 Word / Excel / PPT。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 05 GUIDE ===================== -->
+  <section class="section" id="guide" data-page-node-id="JMaCMWzDRGyOtrgHiJOjwF">
+    <div class="wrap" data-page-node-id="0vHmlCuiAgK7HpB1S5hl5w">
+      <div class="secno" data-reveal data-page-node-id="qFHZoenMvD7BUX9fuIe7dH">05 — 流程</div>
+      <h2 class="h" data-reveal style="--d:60ms" data-page-node-id="Ytj1Pfi5i3d8yOpOdTV1hH">四步完成<span class="gt" data-page-node-id="mvfOht8lKNigyzyjpHbrJE">加密与还原</span></h2>
+      <p class="lede" data-reveal style="--d:120ms" data-page-node-id="cDu8oHiaobETYDfMy4L8la">从准备词表到恢复原文，全程可视化操作，无需命令行。</p>
+
+      <div class="steps" id="steps" data-page-node-id="nsDHqt1NXaFsM1aGbkHwXZ">
+        <div class="steps-rail" data-page-node-id="E3wwkzv8U3PpKg4rdQkY1c"><span class="steps-fill" data-page-node-id="YO3xqAAbLLbTaQlaQwILvh"></span></div>
+
+        <div class="step" data-reveal="left" data-page-node-id="wolE4qtqnEJuLCO7TUuKEG">
+          <div class="step-dot" data-page-node-id="hcWW6sWv6Ie691Kpt9oHMe">01</div>
+          <div class="step-card" data-page-node-id="y2cffTGWxXkW0E7NJDuvCV">
+            <h3 data-page-node-id="nEJvSUgzwi8asYQy0G2UxA">准备敏感词表</h3>
+            <p data-page-node-id="rPSVonEMGrC3AOvZpR5Ufd">在左侧「敏感词表管理」面板中添加需要保护的词汇，例如 <code data-page-node-id="TjQmWDsA5NsQY4gXO6df0P">机密</code>、<code data-page-node-id="l2lybM4S80OsHejFXA27c9">薪酬</code>、<code data-page-node-id="voW04Uqg7LeKwq9XHdUS7B">密码</code>、<code data-page-node-id="jAuB6UyeqqeNblD6XkwCol">身份证号</code>。点击「生成示例词表」可快速体验；词表支持加载 / 保存为 .json 文件，方便长期复用。</p>
+          </div>
+        </div>
+
+        <div class="step" data-reveal="left" style="--d:80ms" data-page-node-id="JlcZhqd1H56FVTDVYgXZs3">
+          <div class="step-dot" data-page-node-id="tBQyjR13Bc59yUq6yI7Ai1">02</div>
+          <div class="step-card" data-page-node-id="MOJhq3LnhxT52Y0d3BFLeq">
+            <h3 data-page-node-id="kB3P7Y50F5YXfioG7sW0oT">选择文档并设置密码</h3>
+            <p data-page-node-id="Gxjg56ixeQy8c622WluNbN">在「文档加密」面板中点击「浏览...」，选择要加密的 Office 文档（支持 <code data-page-node-id="FiAnRCHu9DIpZvEe6e2n4n">.docx</code> / <code data-page-node-id="BNc3Cy8V7z9ClXDTekHh3z">.xlsx</code> / <code data-page-node-id="mNtC3srrxEhZtU7Q7qqkbs">.pptx</code>），再设置解密密码（至少 4 位）。密码是唯一的解密凭证。</p>
+            <span class="tip" data-page-node-id="yR0Rc2JS92qt6PHMXYdCQI">⚠️ 密码丢失将无法恢复原文</span>
+          </div>
+        </div>
+
+        <div class="step" data-reveal="left" style="--d:160ms" data-page-node-id="JBtuoZvu59wipI73KoOwBV">
+          <div class="step-dot" data-page-node-id="UZZr1uJrpqUfAi1XYcEm3G">03</div>
+          <div class="step-card" data-page-node-id="uqOKxgqJ398MHqVuHLWZKH">
+            <h3 data-page-node-id="zBUXEliayJcDjYF8mD4OGP">一键加密</h3>
+            <p data-page-node-id="AponA8wGUrPppiNTewVcLD">点击「一键加密」并选择保存位置，程序会生成两个文件：<code data-page-node-id="F5BeE7d4BvDU43I9E4QHYn">xxx_encrypted.docx</code>（加密后的文档）与 <code data-page-node-id="dIBEQJ10eGwYu3sUEfONXm">xxx_vocab.enc</code>（加密后的词表）。加密后文档外观与原文一致，不影响浏览与打印。</p>
+            <span class="tip ok" data-page-node-id="shP5WXoa9vNU7N518rDfed">💡 建议将加密文档与加密词表分开保管</span>
+          </div>
+        </div>
+
+        <div class="step" data-reveal="left" style="--d:240ms" data-page-node-id="VQpz2dBZPB5m5pk6lU9hdP">
+          <div class="step-dot" data-page-node-id="He3rS0XiX5LjABqQzHErnN">04</div>
+          <div class="step-card" data-page-node-id="8HpMfSYraY7bdNkYgIbA3S">
+            <h3 data-page-node-id="Qjc70g3kCf3GhDQWkV4PqG">解密恢复原文</h3>
+            <p data-page-node-id="yPFISFIOaLrLSSiKw23Cua">在「文档解密」面板中选择加密文档（<code data-page-node-id="Zqk3jA61FxtZnTcA4UFLXK">_encrypted</code> 后缀）与配套 <code data-page-node-id="20EYLNqdGcUxGgkrirGw8q">.enc</code> 词表，输入加密时的密码，点击「一键解密」即可恢复原始文档与词表。</p>
+            <span class="tip ok" data-page-node-id="geklsrmCUCRUByGyEEFOm7">🔒 采用零宽空格标记技术，不会误替换文档中原本存在的正常英文</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 06 DOWNLOAD ===================== -->
+  <section class="section tight" id="download" data-page-node-id="kB2MGWvrCmNYju4OZQnz6E">
+    <div class="wrap" data-page-node-id="GKostNLBablkpkq4QmdWdz">
+      <div class="secno" data-reveal data-page-node-id="dlSecno">06 — 下载与支持</div>
+      <h2 class="h" data-reveal style="--d:60ms" data-page-node-id="dlH2">下载程序 · <span class="gt" data-page-node-id="dlH2g">支持开发者</span></h2>
+
+      <div class="final-grid" style="margin-top:44px" data-page-node-id="finalGrid">
+
+        <!-- download -->
+        <div class="cta-band fill" data-reveal="left" data-page-node-id="Qe92FUolpZ6ZhIJdDtGKiM">
+          <div class="cta-band-in" data-page-node-id="ctaBandIn">
+            <h2 data-page-node-id="01erTHGKPG1nOMJZYMxaQt">开始让文档安全流转</h2>
+            <p data-page-node-id="3HYbMIE0zHPzaYvHMZHNpd">下载即用，无需安装、无需联网、无后台服务。<br data-page-node-id="ctaBr">个人非商业用途完全免费。</p>
+            <a href="office_sensitive_encryptor_v22.py" class="btn btn-primary" download data-page-node-id="zDDP8JbPXsbbAB7L5Q7Bdq">⬇️ 下载程序 (v2.2)</a>
+            <div class="cta-meta" data-page-node-id="fC1ufymemhvqGn6Uj8vxAR">
+              <span data-page-node-id="Eg2eaeVKEKet1uo5bb6jGV">🪟 Windows 原生</span>
+              <span data-page-node-id="VLcDsJDhqLlOcMFDSI0R2I">🔒 纯本地处理</span>
+              <span data-page-node-id="1gkl6Qg5vILuc7UBTymzDm">📄 支持 docx / xlsx / pptx</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- donate -->
+        <div class="donate-card standalone" id="donate" data-reveal="right" style="--d:100ms" data-page-node-id="949q0Or8LTHdW1CLXWnfIz">
+          <div class="coffee" data-page-node-id="xlJPb5xTY3lGFy2QTUybHO">☕</div>
+          <h3 data-page-node-id="x9Mxi5mKEh0WBPDdEEAxoz">请作者喝杯咖啡</h3>
+          <p data-page-node-id="2fc7pIMq3LrGjjwB7EEm8v">本软件个人非商业用途完全免费。<br data-page-node-id="n0EYm7i6wZBOnzJ4Hohh9m">你的捐赠将用于功能迭代与 bug 修复。</p>
+          <div class="qr" data-page-node-id="qspm8tH48JhIv9Pep0ll5g">
+            <img src="donate_qrcode.png" alt="捐赠收款码"
+                 onerror="this.style.display='none';this.nextElementSibling.style.display='grid'" data-page-node-id="A2Ern1C5mIx9Xod2QjAD8H">
+            <div class="qr-ph" data-page-node-id="TAeo7AoalNFUjIFtzqwFA6">收款码占位<span data-page-node-id="MRyniFNwjK87Vum7QgDNwR">请替换为真实收款码</span></div>
+          </div>
+          <p class="qr-label" data-page-node-id="4P4cY4XDq4jNn6q6WKO9f7">微信 / 支付宝扫码捐赠</p>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== 07 LICENSE ===================== -->
+  <section class="section tight" id="license" data-page-node-id="licenseSec">
+    <div class="wrap" data-page-node-id="GGJ8OHbGr9rx0DEJBkOKDq">
+      <div class="secno" data-reveal data-page-node-id="yYzwfJhjKfSoZDcjnBEHiH">07 — 版权与授权</div>
+      <h2 class="h" data-reveal style="--d:60ms" data-page-node-id="ZtkkD1FGkBvggRzXsg6oDF">版权声明 · <span class="gt" data-page-node-id="D2Jy3RF7eoECBOfbtMTIXI">授权协议</span></h2>
+      <p class="lede" data-reveal style="--d:120ms" data-page-node-id="licLede">使用本软件前，请仔细阅读以下授权条款。</p>
+
+      <div class="license-card" data-reveal style="margin-top:44px" data-page-node-id="7JH7R3Db7f5zdiheJGrUiV">
+        <h3 data-page-node-id="tBA0S0mnmuiJ2ozostIXfO">📜 授权许可</h3>
+        <div class="license-cols" data-page-node-id="licenseCols">
+        <div data-page-node-id="licenseColA">
+
+          <div class="lb free" data-page-node-id="HTAdlragiApiVPK4cB5fLK">
+            <h4 data-page-node-id="ZuHqGN580gDvHWswciA90e">✅ 个人非商业用途 — 免费授权</h4>
+            <ul data-page-node-id="vUjue0DZMWqcKqgZ6B3o1L">
+              <li data-page-node-id="MA93K5IHNNqHw6S0u1ZJCy">个人用户可在非商业场景下免费使用全部功能</li>
+              <li data-page-node-id="7hRtrG8pKz7SiRSMmd37Un">包括个人学习、研究、家庭文档管理等非盈利性活动</li>
+              <li data-page-node-id="fylqzavPyNtEEk64uWPfnM">可自由复制与分发，但须保持软件完整性，不得移除或修改版权声明</li>
             </ul>
+          </div>
+
+          <div class="lb biz" data-page-node-id="NWIoooFCseMl7eR2IBGW0l">
+            <h4 data-page-node-id="yZpYcIB8vFoiqvkNybqKyI">🏢 企业 / 单位商业用途 — 必须购买商用授权</h4>
+            <ul data-page-node-id="vNmRtOAezOnDD1j1J7cCJe">
+              <li data-page-node-id="3lTmCvnz1GkaAfY0xcuXix">企业、事业单位、组织机构将其用于商业生产、内部业务流程、对外服务、产品集成等产生经济收益的场景，须事先获得书面商用授权</li>
+              <li data-page-node-id="aBVmACCqtjILDmviTg5CRq">包括内部文档加密管理系统、对外文档安全处理服务、集成到商业产品，以及政府 / 金融 / 医疗 / 教育等机构的业务系统使用</li>
+            </ul>
+          </div>
+
+          <div class="lb ban" data-page-node-id="LNSK9mYVRu71Px3a3AKnlv">
+            <h4 data-page-node-id="smyRZTVi0GV4eAq9DXoPjp">🚫 禁止行为</h4>
+            <ul data-page-node-id="HZ4lXwjADbPG2yChbsZ9aW">
+              <li data-page-node-id="iap1hX7TOcJ5PQSEQDKMLh">未经版权所有者 Sam Li 书面许可，不得反向工程、反编译、反汇编</li>
+              <li data-page-node-id="yhXJ3MIQ7ynrTsqmYYnBVU">不得出租、出借、出售、分发、再许可本软件或其任何部分</li>
+              <li data-page-node-id="v6APdGIEBVJNl8vuAEP6rQ">不得移除或修改软件中的版权声明、授权协议与作者信息</li>
+              <li data-page-node-id="Vn4xKdAbQcXvhRGdsirGIj">不得用于违反法律法规或侵犯第三方权益的活动</li>
+              <li data-page-node-id="lvYgwpIV1Vpb4E1GMPqGhA">不得以本软件为基础开发竞争性产品或服务</li>
+            </ul>
+          </div>
+
         </div>
-    </nav>
+        <div data-page-node-id="licenseColB">
+          <div class="lb" data-page-node-id="zfEi0MyJ3J0kdhTSeJG5Tq">
+            <h4 data-page-node-id="BXQZ4BBvL70gPCheAHjCFJ">⚠️ 免责声明</h4>
+            <p data-page-node-id="oldH4CBQhRMkFgP0iDGrmJ">本软件按"现状"提供，作者不对软件的适用性、可靠性、准确性作出任何明示或暗示的担保。用户应自行承担使用风险，作者不对因使用或无法使用本软件导致的任何直接、间接、附带、特殊或后果性损害承担责任，包括但不限于数据丢失、业务中断、密码遗忘导致的文档无法恢复等情形。用户有责任妥善保管加密密码与加密词表，因密码丢失或词表损坏导致的文档无法解密，作者不提供恢复服务且不承担任何责任。</p>
+          </div>
 
-    <!-- 第一部分：Hero / 下载 -->
-    <section class="hero" id="download">
-        <div class="container">
-            <h1>Office敏感词加解密工具</h1>
-            <p class="subtitle">
-                一键对 Word、Excel、PowerPoint 文档中的敏感词汇进行等长英文字符替换加密，
-                词表采用 AES-256 加密保护，确保文档安全流转。
-            </p>
-            <div class="badges">
-                <span class="badge">📄 Word (.docx)</span>
-                <span class="badge">📊 Excel (.xlsx)</span>
-                <span class="badge">🎬 PowerPoint (.pptx)</span>
-                <span class="badge">🔒 AES-256 加密</span>
-                <span class="badge">🪟 Windows 原生</span>
-            </div>
-
-            <!-- 核心卖点 -->
-            <div class="features">
-                <div class="feature-card">
-                    <div class="feature-icon">💻</div>
-                    <h4>纯本地运行</h4>
-                    <p>文档不上传云端，全程离线处理，彻底杜绝数据外泄风险，企业机密文档安全无忧</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔄</div>
-                    <h4>可逆脱敏</h4>
-                    <p>加密后的文档可正常流转，需要时通过配套词表与密码一键还原原文，100% 精准恢复</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📐</div>
-                    <h4>排版保持</h4>
-                    <p>等长英文字符替换敏感词，文档格式、段落间距、打印效果完全不变，肉眼无法识别敏感位置</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🛡️</div>
-                    <h4>词表独立加密</h4>
-                    <p>敏感词映射关系采用 AES-256 加密保护，即使词表文件泄露，没有密码也无法破解原文</p>
-                </div>
-            </div>
-            <br>
-            <a href="office_sensitive_encryptor_v22.py" class="download-btn" download>
-                ⬇️ 下载程序 (v2.2)
-            </a>
-            <p class="download-note">
-                下载后可直接运行
-            </p>
+          <div class="contact-box" data-page-node-id="hyHtso2GWX94Dvfz7rMrdf">
+            <p data-page-node-id="rKcN8vxohYSv73SWfIdh5x">📧 如需购买企业商用授权，请联系：<strong data-page-node-id="vSQMmphgDCnAPsKARSa1zE">Sam Li</strong> <a href="mailto:samstay@sina.com" data-page-node-id="5dJN1jBPvNtHdYoAYcFqfm">samstay@sina.com</a></p>
+            <span class="hint" data-page-node-id="FTP96PM2ZUMWujt0ZBX2UZ">请在邮件中注明企业全称、统一社会信用代码、预计使用场景和范围、联系人及电话</span>
+          </div>
+          </div>
         </div>
-    </section>
+      </div>
+    </div>
+  </section>
 
-    <!-- 第二部分：捐赠 -->
-    <section class="donate" id="donate">
-        <div class="container">
-            <h2 class="section-title">💖 支持开发者</h2>
-            <p class="section-desc">
-                如果您觉得这款工具对您有帮助，欢迎通过扫码捐赠支持持续开发与维护。
-                您的每一份支持都是开源前进的动力！
-            </p>
-            <div class="donate-card">
-                <div class="heart">☕</div>
-                <h3>请作者喝杯咖啡</h3>
-                <p>
-                    本软件个人非商业用途完全免费。<br>
-                    您的捐赠将用于服务器维护、功能迭代和bug修复。
-                </p>
-                <div class="qrcode-box">
-                    <img src="donate_qrcode.png" alt="捐赠二维码">
-                </div>
-                <p class="qrcode-label">微信 / 支付宝扫码捐赠（请替换为真实收款码）</p>
-            </div>
-        </div>
-    </section>
+</main>
 
-    <!-- 第三部分：版权说明 -->
-    <section class="copyright" id="copyright">
-        <div class="container">
-            <h2 class="section-title">© 版权声明与授权协议</h2>
-            <p class="section-desc">使用本软件前，请仔细阅读以下授权条款。</p>
+<footer data-page-node-id="36PmeXX4C97gxXt19xwDDN">
+  <div class="foot-inner" data-page-node-id="8c3B207fG3LjFFPkEr5B7I">
+    <p data-page-node-id="QDbUfIoGIxsxIQ9xc9bIf5">© 2026 Sam Li · 版权所有 · <a href="mailto:samstay@sina.com" data-page-node-id="aY8oSglmQzXfKSPG9VkRox">samstay@sina.com</a></p>
+    <p data-page-node-id="BhsgQRdd50WvVs4gfJqiWz">Office 敏感词加解密工具 · v2.2</p>
+    <p class="foot-small" data-page-node-id="D1VZH7spZD8gTOo9LFcGmC">本软件受《中华人民共和国著作权法》保护，未经授权不得用于商业用途</p>
+  </div>
+</footer>
 
-            <div class="copyright-card">
-                <h3>📜 授权许可</h3>
+<noscript data-page-node-id="54eV6wSbSc4iglgTEHRsoI">
+  <style>
+    [data-reveal]{opacity:1!important;transform:none!important;filter:none!important}
+    .hero h1 .line>span{transform:none!important;animation:none!important}
+    .fade-up{opacity:1!important;transform:none!important;animation:none!important}
+  </style>
+</noscript>
 
-                <div class="license-block">
-                    <h4>✅ 个人非商业用途 — 免费授权</h4>
-                    <ul>
-                        <li>个人用户可在非商业场景下免费使用本软件的全部功能</li>
-                        <li>包括但不限于：个人学习、研究、家庭文档管理、个人项目等非盈利性活动</li>
-                        <li>个人用户可自由复制和分发本软件，但须保持软件完整性，不得移除或修改版权声明</li>
-                    </ul>
-                </div>
+<script>
+(function () {
+  'use strict';
 
-                <div class="license-block">
-                    <h4>🏢 企业/单位商业用途 — 必须购买商用授权</h4>
-                    <ul>
-                        <li>任何企业、事业单位、组织机构将本软件用于商业生产、内部业务流程、对外服务、产品集成、数据安全处理等直接或间接产生经济收益的场景，必须事先获得书面商用授权</li>
-                        <li>包括但不限于：企业内部文档加密管理系统、对外提供文档安全处理服务、集成到商业产品或解决方案中、政府/金融/医疗/教育等机构的业务系统使用、任何形式的 SaaS / PaaS 或托管服务</li>
-                    </ul>
-                </div>
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var docEl  = document.documentElement;
 
-                <div class="license-block">
-                    <h4>🚫 禁止行为</h4>
-                    <ul>
-                        <li>未经版权所有者 Sam Li 的书面许可，不得对本软件进行反向工程、反编译、反汇编</li>
-                        <li>不得出租、出借、出售、分发、再许可本软件或其任何部分</li>
-                        <li>不得移除或修改软件中的版权声明、授权协议、作者信息</li>
-                        <li>不得将本软件用于任何违反法律法规或侵犯第三方权益的活动</li>
-                        <li>不得以本软件为基础开发竞争性产品或服务</li>
-                    </ul>
-                </div>
+  /* ---------------------------------------------------------
+     1. Scroll loop: progress bar + nav state + timeline fill
+     --------------------------------------------------------- */
+  var bar        = document.querySelector('.progress i');
+  var nav        = document.getElementById('nav');
+  var stepsEl    = document.getElementById('steps');
+  var stepsFill  = document.querySelector('.steps-fill');
+  var ticking    = false;
 
-                <div class="license-block">
-                    <h4>⚠️ 免责声明</h4>
-                    <p>本软件按"现状"提供，作者不对软件的适用性、可靠性、准确性作出任何明示或暗示的担保。用户应自行承担使用本软件的风险，作者不对因使用或无法使用本软件而导致的任何直接、间接、附带、特殊或后果性损害承担责任，包括但不限于数据丢失、业务中断、密码遗忘导致的文档无法恢复等情形。用户有责任妥善保管加密密码和加密词表，因密码丢失或词表损坏导致的文档无法解密，作者不提供恢复服务且不承担任何责任。</p>
-                </div>
+  function onFrame() {
+    var y   = window.pageYOffset || docEl.scrollTop;
+    var max = docEl.scrollHeight - window.innerHeight;
 
-                <div class="contact-box">
-                    <p>
-                        📧 如需购买企业商用授权，请联系：<strong>Sam Li</strong> 
-                        <a href="mailto:samstay@sina.com">samstay@sina.com</a><br>
-                        <span style="font-size:12px; color:#8080a0;">请在邮件中注明企业全称、统一社会信用代码、预计使用场景和范围、联系人及电话</span>
-                    </p>
-                </div>
-            </div>
-        </div>
-    </section>
+    if (bar) {
+      bar.style.transform = 'scaleX(' + (max > 0 ? Math.min(1, Math.max(0, y / max)) : 0) + ')';
+    }
+    if (nav) {
+      nav.classList.toggle('scrolled', y > 16);
+    }
+    if (stepsEl && stepsFill) {
+      var r   = stepsEl.getBoundingClientRect();
+      var vh  = window.innerHeight;
+      var raw = (vh * 0.72 - r.top) / Math.max(1, r.height * 0.82);
+      stepsFill.style.transform = 'scaleY(' + Math.min(1, Math.max(0, raw)) + ')';
+    }
+    ticking = false;
+  }
 
-    <!-- 第四部分：使用说明 -->
-    <section class="guide" id="guide">
-        <div class="container">
-            <h2 class="section-title">📖 使用说明</h2>
-            <p class="section-desc">简单四步，快速上手文档敏感词加解密。</p>
+  function onScroll() {
+    if (ticking) return;
+    ticking = true;
+    window.requestAnimationFrame(onFrame);
+  }
 
-            <div class="steps">
-                <div class="step-card">
-                    <div class="step-num">1</div>
-                    <div class="step-content">
-                        <h4>准备敏感词表</h4>
-                        <p>在左侧"敏感词表管理"面板中，添加需要保护的敏感词汇（如：机密、薪酬、密码、身份证号等）。点击"生成示例词表"可快速体验功能。词表支持加载/保存为 .json 文件，方便复用。</p>
-                    </div>
-                </div>
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
 
-                <div class="step-card">
-                    <div class="step-num">2</div>
-                    <div class="step-content">
-                        <h4>选择文档并设置密码</h4>
-                        <p>在"文档加密"面板中，点击"浏览..."选择要加密的 Office 文档（支持 .docx / .xlsx / .pptx）。在密码框中设置解密密码（至少4位），密码是唯一的解密凭证，请务必牢记。</p>
-                        <span class="tip">⚠️ 密码丢失将无法恢复原文！</span>
-                    </div>
-                </div>
+  /* ---------------------------------------------------------
+     2. Reveal on scroll
+     --------------------------------------------------------- */
+  var revealables = Array.prototype.slice.call(document.querySelectorAll('[data-reveal]'));
 
-                <div class="step-card">
-                    <div class="step-num">3</div>
-                    <div class="step-content">
-                        <h4>一键加密</h4>
-                        <p>点击"一键加密"，选择保存位置。程序将生成两个文件：<code>xxx_encrypted.docx</code>（加密后的文档）和 <code>xxx_vocab.enc</code>（加密后的词表）。加密后的文档外观与原文一致，只是敏感词变成了等长英文字符串，不影响正常浏览和打印。</p>
-                        <span class="tip">💡 建议将加密文档和加密词表分开保管，提高安全性</span>
-                    </div>
-                </div>
+  if (reduce || !('IntersectionObserver' in window)) {
+    revealables.forEach(function (el) { el.classList.add('in'); });
+  } else {
+    var revealIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('in');
+        revealIO.unobserve(entry.target);
+        if (entry.target.classList.contains('pcard')) entry.target.classList.add('in');
+      });
+    }, { rootMargin: '0px 0px -12% 0px', threshold: 0.12 });
 
-                <div class="step-card">
-                    <div class="step-num">4</div>
-                    <div class="step-content">
-                        <h4>解密恢复原文</h4>
-                        <p>在"文档解密"面板中，选择加密后的文档（_encrypted 后缀）和配套的 .enc 加密词表文件，输入加密时设置的密码，点击"一键解密"。程序将恢复原始文档和词表，文档中的敏感词恢复为原文。</p>
-                        <span class="tip">🔒 采用零宽空格标记技术，确保不会误替换文档中原本存在的正常英文</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+    revealables.forEach(function (el) { revealIO.observe(el); });
+  }
 
-    <!-- 页脚 -->
-    <footer>
-        <p>
-            © 2026 Sam Li · 版权所有 · 
-            <a href="mailto:samstay@sina.com">samstay@sina.com</a>
-        </p>
-        <p style="margin-top:8px; font-size:12px;">本软件受《中华人民共和国著作权法》保护，未经授权不得用于商业用途</p>
-    </footer>
+  /* ---------------------------------------------------------
+     3. Number counters
+     --------------------------------------------------------- */
+  function runCounter(el) {
+    var target = parseFloat(el.getAttribute('data-count')) || 0;
+    if (reduce || target === 0) { el.textContent = String(target); return; }
+    var dur = 1100, start = 0;
+    function step(now) {
+      if (!start) start = now;
+      var p = Math.min(1, (now - start) / dur);
+      // ease-out-expo
+      var e = p === 1 ? 1 : 1 - Math.pow(2, -10 * p);
+      el.textContent = String(Math.round(target * e));
+      if (p < 1) window.requestAnimationFrame(step);
+      else el.textContent = String(target);
+    }
+    window.requestAnimationFrame(step);
+  }
 
+  var counters = Array.prototype.slice.call(document.querySelectorAll('[data-count]'));
+  if (reduce || !('IntersectionObserver' in window)) {
+    counters.forEach(runCounter);
+  } else {
+    var countIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        runCounter(entry.target);
+        countIO.unobserve(entry.target);
+      });
+    }, { threshold: 0.6 });
+    counters.forEach(function (el) { countIO.observe(el); });
+  }
+
+  /* ---------------------------------------------------------
+     4. Demo — scramble the cipher words
+     --------------------------------------------------------- */
+  var POOL = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz0123456789';
+  var demoDoc  = document.querySelector('#demo .doc.is-enc');
+  var demoStat = document.getElementById('demoStat');
+  var replay   = document.getElementById('replay');
+  var cipherEls = demoDoc ? Array.prototype.slice.call(demoDoc.querySelectorAll('.w[data-cipher]')) : [];
+  var demoPlayed = false;
+  var rafIds = [];
+
+  function randChar() { return POOL.charAt(Math.floor(Math.random() * POOL.length)); }
+
+  function scramble(el, finalText, duration) {
+    var start = 0, n = finalText.length;
+    function frame(now) {
+      if (!start) start = now;
+      var p = Math.min(1, (now - start) / duration);
+      var locked = Math.floor(p * n * 1.35);
+      var out = '';
+      for (var i = 0; i < n; i++) {
+        out += (i < locked) ? finalText.charAt(i) : randChar();
+      }
+      el.textContent = out;
+      if (p < 1) {
+        var id = window.requestAnimationFrame(frame);
+        rafIds.push(id);
+      } else {
+        el.textContent = finalText;
+        el.classList.add('enc');
+      }
+    }
+    var id0 = window.requestAnimationFrame(frame);
+    rafIds.push(id0);
+  }
+
+  function countUpStat(total) {
+    if (!demoStat) return;
+    var dur = 700, start = 0;
+    function step(now) {
+      if (!start) start = now;
+      var p = Math.min(1, (now - start) / dur);
+      var e = 1 - Math.pow(2, -10 * p);
+      demoStat.textContent = '已保护 ' + Math.round(total * e) + ' 处敏感词 · 长度差 0';
+      if (p < 1) window.requestAnimationFrame(step);
+      else demoStat.textContent = '已保护 ' + total + ' 处敏感词 · 长度差 0';
+    }
+    window.requestAnimationFrame(step);
+  }
+
+  function resetDemo() {
+    rafIds.forEach(function (id) { window.cancelAnimationFrame(id); });
+    rafIds = [];
+    cipherEls.forEach(function (el) {
+      el.classList.remove('enc');
+      el.textContent = el.getAttribute('data-plain') || el.getAttribute('data-cipher');
+    });
+    if (demoStat) demoStat.textContent = '已保护 0 处敏感词 · 长度差 0';
+  }
+
+  function playDemo() {
+    if (demoPlayed || !demoDoc) return;
+    demoPlayed = true;
+
+    cipherEls.forEach(function (el) { el.setAttribute('data-plain', el.textContent.trim()); });
+
+    if (reduce) {
+      cipherEls.forEach(function (el) {
+        el.textContent = el.getAttribute('data-cipher');
+        el.classList.add('enc');
+      });
+      if (demoStat) demoStat.textContent = '已保护 ' + cipherEls.length + ' 处敏感词 · 长度差 0';
+      return;
+    }
+
+    cipherEls.forEach(function (el, i) {
+      window.setTimeout(function () {
+        scramble(el, el.getAttribute('data-cipher'), 520);
+      }, 180 + i * 140);
+    });
+
+    window.setTimeout(function () { countUpStat(cipherEls.length); }, 420);
+  }
+
+  if (replay) {
+    replay.addEventListener('click', function () {
+      resetDemo();
+      demoPlayed = false;
+      window.setTimeout(playDemo, 60);
+    });
+  }
+
+  if (demoDoc && ('IntersectionObserver' in window)) {
+    var demoIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) { playDemo(); demoIO.disconnect(); }
+      });
+    }, { threshold: 0.35 });
+    demoIO.observe(demoDoc);
+  } else {
+    playDemo();
+  }
+
+  /* ---------------------------------------------------------
+     5. Nav scroll-spy
+     --------------------------------------------------------- */
+  var navLinks = Array.prototype.slice.call(document.querySelectorAll('.nav-links a'));
+  var sections = navLinks
+    .map(function (a) { return document.querySelector(a.getAttribute('href')); })
+    .filter(Boolean);
+
+  if (sections.length && 'IntersectionObserver' in window) {
+    var spyIO = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (!entry.isIntersecting) return;
+        navLinks.forEach(function (a) {
+          a.classList.toggle('active', a.getAttribute('href') === '#' + entry.target.id);
+        });
+      });
+    }, { rootMargin: '-45% 0px -50% 0px', threshold: 0 });
+    sections.forEach(function (s) { spyIO.observe(s); });
+  }
+
+  /* ---------------------------------------------------------
+     6. Gentle hero parallax (decorative chips only)
+     --------------------------------------------------------- */
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.chip[data-float]'));
+  if (chips.length && !reduce) {
+    var parallaxOn = false;
+    var pTick = false;
+    function parallax() {
+      var y = window.pageYOffset || docEl.scrollTop;
+      if (y > window.innerHeight * 1.2) {
+        if (parallaxOn) { chips.forEach(function (c) { c.style.transform = 'none'; }); parallaxOn = false; }
+        pTick = false;
+        return;
+      }
+      parallaxOn = true;
+      chips.forEach(function (c) {
+        var k = parseFloat(c.getAttribute('data-float')) || 1;
+        var off = (k % 2 === 0 ? -1 : 1) * y * 0.05 * k;
+        c.style.transform = 'translate3d(0,' + off.toFixed(2) + 'px,0)';
+      });
+      pTick = false;
+    }
+    window.addEventListener('scroll', function () {
+      if (pTick) return;
+      pTick = true;
+      window.requestAnimationFrame(parallax);
+    }, { passive: true });
+  }
+
+  /* ---------------------------------------------------------
+     init
+     --------------------------------------------------------- */
+  onFrame();
+
+  // re-run after fonts / images settle so the rail is measured correctly
+  window.addEventListener('load', onFrame);
+})();
+</script>
 </body>
 </html>
