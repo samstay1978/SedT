@@ -1,0 +1,7 @@
+# 私钥证书，绝不能上传
+mycert.pfx
+mycert.cer
+
+# 本地构建产物
+app/
+*.zip
