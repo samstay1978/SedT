@@ -14,7 +14,7 @@
   <!-- 身份：包名 / 发布者（=证书 Subject）/ 版本(Major.Minor.Build.Revision) -->
   <Identity Name="samstay.OfficeSensitiveEncryptor"
             Publisher="CN=Sam Li"
-            Version="2.3.0.0" />
+            Version="2.4.0.0" />
 
   <Properties>
     <DisplayName>Office敏感词加解密工具</DisplayName>

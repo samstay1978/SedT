@@ -3,7 +3,7 @@
 <head data-page-node-id="keYdc5AUkMNMGn9Mati67r">
 <meta charset="UTF-8" data-page-node-id="epYef1hBiuf9bACgsFxgAA">
 <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="Q1zCTQZnf1ooD17E9DgtWX">
-<meta name="description" content="Office 敏感词加解密工具 — 一键对 Word / Excel / PowerPoint 中的敏感词做等长英文字符替换加密，词表 AES-256 独立保护，纯本地运行。" data-page-node-id="weg2SMpTCk9G1LIWKEHNAh">
+<meta name="description" content="Office 敏感词加解密工具 — 一键对 Word / Excel / PowerPoint 中的敏感词做随机英文字符替换加密，支持强加密（L~2L 变长、每词 5~10 个变体随机替换），词表 AES-256 独立保护，纯本地运行。" data-page-node-id="weg2SMpTCk9G1LIWKEHNAh">
 <title>Office 敏感词加解密工具 · 让敏感词在文档里隐形</title>
 <style>
 /* ============================================================
@@ -1046,8 +1046,8 @@ footer{
       </h1>
 
       <p class="sub fade-up" style="--d:420ms" data-page-node-id="nVyvcCQ8uA62d85XmdFXGZ">
-        一键对 <b data-page-node-id="ofTnkVwdNa3jxvANj6tGNL">Word</b>、<b data-page-node-id="1BDQIqlEP7NYgaykkZOogO">Excel</b>、<b data-page-node-id="XkUZgSXbzLsFEvxZJZbUeT">PowerPoint</b> 中的敏感词汇做等长英文字符替换加密，
-        词表由 <b data-page-node-id="UBsH6zJWhrCowCB843ElWe">AES-256</b> 独立保护。文档照常流转，排版分毫不差，需要时凭密码一键还原。
+        一键对 <b data-page-node-id="ofTnkVwdNa3jxvANj6tGNL">Word</b>、<b data-page-node-id="1BDQIqlEP7NYgaykkZOogO">Excel</b>、<b data-page-node-id="XkUZgSXbzLsFEvxZJZbUeT">PowerPoint</b> 中的敏感词汇做随机英文字符替换加密，
+        词表由 <b data-page-node-id="UBsH6zJWhrCowCB843ElWe">AES-256</b> 独立保护。标准模式等长替换、排版分毫不差；勾选<b>强加密</b>后，每个敏感词由 5~10 个 L~2L 变长字符串逐处随机替换，密文无从反推。需要时凭密码一键还原。
       </p>
 
       <div class="cta-row fade-up" style="--d:520ms" data-page-node-id="yIl74FJnPAIbm6f6esbhK4">
@@ -1126,13 +1126,13 @@ footer{
   <section class="section" id="how" data-page-node-id="Rzpa8N6jmMDDZPF50Aj0Y9">
     <div class="wrap" data-page-node-id="fNRRzt7ey2q6ieZahG73VS">
       <div class="secno" data-reveal data-page-node-id="tkDlpoFcaxxB8tUTtDD1SQ">02 — 原理</div>
-      <h2 class="h" data-reveal style="--d:60ms" data-page-node-id="KwxYxB5pPGWl1YCbjyS7ld">等长替换：<span class="gt" data-page-node-id="yKqsL6XM00B7MsH3MQraJy">看得见的加密</span></h2>
+      <h2 class="h" data-reveal style="--d:60ms" data-page-node-id="KwxYxB5pPGWl1YCbjyS7ld">随机替换：<span class="gt" data-page-node-id="yKqsL6XM00B7MsH3MQraJy">看得见的加密</span></h2>
 
       <div class="demo-grid" data-page-node-id="vhq4NVL2TFQADqk11ZDh8K">
         <div class="demo-side" data-page-node-id="VGLzbHWl59Ir8kWp4yX6C4">
           <p class="lede" data-reveal style="--d:120ms;margin-top:0" data-page-node-id="x4LVxmnp7sxtWKVYWryKdv">
-            程序定位文档中的敏感词，将其替换为<b data-page-node-id="vgtmzc4nnOAToO3nMdCNyX">完全相同长度</b>的英文字符串。
-            字数不变、段落不变、分页不变 —— 打开还是那份文档，只是关键词已经认不出来。
+            程序定位文档中的敏感词，将其替换为随机英文字符串。<b data-page-node-id="vgtmzc4nnOAToO3nMdCNyX">标准模式等长替换</b>，
+            字数不变、段落不变、分页不变；勾选<b>强加密</b>后改为 L~2L 变长、每词 5~10 个变体逐处随机 —— 打开还是那份文档，只是关键词已经认不出来。
           </p>
 
           <ul class="split" data-page-node-id="bz4DAcjMl3VzABizb2hb0d">
@@ -1142,13 +1142,18 @@ footer{
             </li>
             <li data-reveal="left" style="--d:220ms" data-page-node-id="5YHEFw4mR9EJNXABXeF2v9">
               <span class="dot" data-page-node-id="fXUg9XQWKJlryI2mC4enqk">2</span>
-              <span data-page-node-id="A1F7wAnRmBYGHegd37e2xt"><b data-page-node-id="JAPWIGVKhjM3EPasd9bJcI">等长英文字符替换</b><br data-page-node-id="vAmoQRb7h4nGtDAzrtcGdC">「薪酬」→ <code data-page-node-id="8yt6QQC2FSKHnpQREGoHGB">Qx</code>，长度差为 0，版式零位移。</span>
+              <span data-page-node-id="A1F7wAnRmBYGHegd37e2xt"><b data-page-node-id="JAPWIGVKhjM3EPasd9bJcI">随机英文字符替换</b><br data-page-node-id="vAmoQRb7h4nGtDAzrtcGdC">标准模式「薪酬」→ <code data-page-node-id="8yt6QQC2FSKHnpQREGoHGB">Qx</code>，长度差为 0；强加密则由 5~10 个长度 L~2L 的字符串（如 <code>KzAm</code>、<code>tWpQxL</code>）逐处随机替换。</span>
             </li>
             <li data-reveal="left" style="--d:280ms" data-page-node-id="y2SG1CUONz7vCxaQdue4By">
               <span class="dot" data-page-node-id="fvcQzaq3hfY8iL9whOm23n">3</span>
               <span data-page-node-id="H8MWhIAVJcewvk87HMqIbe"><b data-page-node-id="yLLNIFWhPrNMuTGkCb9XKG">零宽空格标记</b><br data-page-node-id="h1KVSO15JufVkg0kdD0tmD">给替换结果打上隐形标记，确保不会误伤文档中原本就存在的正常英文。</span>
             </li>
           </ul>
+
+          <div data-reveal="left" style="--d:340ms;margin-top:18px;padding:16px 18px;border-radius:16px;background:linear-gradient(115deg,rgba(59,130,246,.10),rgba(139,92,246,.10));border:1px solid rgba(59,130,246,.28);font-size:14px;line-height:1.8" data-page-node-id="strongTip">
+            <b style="color:#4f46e5">🛡️ 强加密（v2.4 新增，单文件 / 批量均可勾选）</b><br>
+            敏感词长度为 L 时，替换串长度在 <b>[L, 2L]</b> 间随机；每个敏感词一次性生成 <b>5~10 个</b>不同字符串，文中每次出现随机换用其一。出现频率、字符串长度都不再携带原词信息，抗词频与长度分析能力显著增强；解密时自动识别词表类型，操作与标准模式完全一致。
+          </div>
         </div>
 
         <div class="doc-stack" id="demo" data-page-node-id="D1iHJgyTnXmiMVbiOqKOp8">
@@ -1170,7 +1175,7 @@ footer{
 
           <!-- arrow -->
           <div class="demo-arrow" aria-hidden="true" data-page-node-id="47soCHJY6wN8cSNHotUTra">
-            <span class="lbl" data-page-node-id="qC5ZUvbZaCLFRoPMhUVE6x">等长替换</span>
+            <span class="lbl" data-page-node-id="qC5ZUvbZaCLFRoPMhUVE6x">随机替换</span>
             <span class="line" data-page-node-id="jzvYa1QvKb6J93xA41CbN3"></span>
           </div>
 
@@ -1224,7 +1229,7 @@ footer{
           <span class="glow" data-page-node-id="WFqnRKT33LqmNQtkZclYWa"></span>
           <div class="ico" data-page-node-id="qCYVmEAPxTury6pbQuZb65">📐</div>
           <h3 data-page-node-id="cd7ea8lrqDBD6RGBCtSZhe">排版保持</h3>
-          <p data-page-node-id="D9h9chBU29ycGNrAjAUnKr">等长英文字符替换，格式、段落间距、打印效果完全不变，肉眼无法识别敏感位置。</p>
+          <p data-page-node-id="D9h9chBU29ycGNrAjAUnKr">标准模式等长英文字符替换，格式、段落间距、打印效果完全不变；可选强加密以变长多变体进一步提升密文复杂度，肉眼同样无法识别敏感位置。</p>
         </article>
         <article class="fcard" data-reveal style="--d:240ms" data-page-node-id="ohLgLJBGdkjTMBFBigLzay">
           <span class="glow" data-page-node-id="0JTfmgtxFP7ukAZEcX9n1A"></span>
@@ -1251,7 +1256,7 @@ footer{
           <div class="chain" data-page-node-id="ddduOE61458Ephh4nYuN2Y">
             <div class="node" data-page-node-id="IwLAIJqX7DMps3GThtIIZt"><div class="k" data-page-node-id="VUerqBOy2In3UzzPx2zOya">INPUT</div><div class="v" data-page-node-id="4YI0Hq6zXl0tZ36vjKkFmW">原始 Office 文档<br data-page-node-id="qytcPqiNaXfL608XRBgADU"><span style="font-weight:600;color:var(--muted)" data-page-node-id="nuHZs3kZYCbOrj940GiGoY">.docx / .xlsx / .pptx</span></div></div>
             <div class="arrow" data-page-node-id="8zSsZ4ymKTzR70dP99xMt4">→</div>
-            <div class="node hl" data-page-node-id="biCqQEw62THiPmZdDrHAdz"><div class="k" data-page-node-id="tC8wqghLpcMQHB8mrlz1j6">PROCESS</div><div class="v" data-page-node-id="sw9ZV4jRoZ6FgkHhkKKsu8">等长英文字符替换<br data-page-node-id="BwBtmNKrGJ8eWia1OOrMrL"><span style="font-weight:600;color:var(--muted)" data-page-node-id="6qK8WZbg6Nv6VheplblJmO">字数、版式零变化</span></div></div>
+            <div class="node hl" data-page-node-id="biCqQEw62THiPmZdDrHAdz"><div class="k" data-page-node-id="tC8wqghLpcMQHB8mrlz1j6">PROCESS</div><div class="v" data-page-node-id="sw9ZV4jRoZ6FgkHhkKKsu8">随机英文字符替换<br data-page-node-id="BwBtmNKrGJ8eWia1OOrMrL"><span style="font-weight:600;color:var(--muted)" data-page-node-id="6qK8WZbg6Nv6VheplblJmO">标准等长 · 强加密 L~2L × 5~10 变体</span></div></div>
             <div class="arrow" data-page-node-id="mKMdC6nuabBbm7ZNYDwZZu">→</div>
             <div class="node mono" data-page-node-id="PJHN72KKCphFoIv7cAICCO"><div class="k" data-page-node-id="Zgfvh13ajXwoCYZY99Mj1r">OUTPUT</div><div class="v" data-page-node-id="CtmQKCWcnPcdC8weHJxkHG">xxx_encrypted.docx</div></div>
           </div>
@@ -1328,19 +1333,19 @@ footer{
         <div class="shot" data-reveal="scale" data-page-node-id="shotMain">
           <div class="shot-bar" data-page-node-id="shotMainBar">
             <span class="shot-dots" data-page-node-id="shotMainDots"><i></i><i></i><i></i></span>
-            <span class="shot-title" data-page-node-id="shotMainTitle">主界面 · 词表管理 + 单文件加密 / 解密</span>
-            <span class="shot-badge ui" data-page-node-id="shotMainBadge">实际软件界面</span>
+            <span class="shot-title" data-page-node-id="shotMainTitle">主界面 · 词表管理 + 单文件加密 / 解密（密码框后可勾选「强加密」）</span>
+            <span class="shot-badge ui" data-page-node-id="shotMainBadge">v2.4 实际软件界面</span>
           </div>
-          <img src="img/p1.png" alt="主界面截图：敏感词表管理与文档加解密" loading="lazy" data-page-node-id="shotMainImg">
+          <img src="img/p1.png" alt="主界面截图 v2.4：敏感词表管理与文档加解密，密码框后含「强加密」勾选框" loading="lazy" data-page-node-id="shotMainImg">
         </div>
 
         <div class="shot" data-reveal="scale" style="--d:100ms" data-page-node-id="shotBatch">
           <div class="shot-bar" data-page-node-id="shotBatchBar">
             <span class="shot-dots" data-page-node-id="shotBatchDots"><i></i><i></i><i></i></span>
-            <span class="shot-title" data-page-node-id="shotBatchTitle">批量处理 · 一个目录整体加密 / 解密</span>
-            <span class="shot-badge new" data-page-node-id="shotBatchBadge">批量处理</span>
+            <span class="shot-title" data-page-node-id="shotBatchTitle">批量处理 · 一个目录整体加密 / 解密（支持批量强加密）</span>
+            <span class="shot-badge new" data-page-node-id="shotBatchBadge">v2.4 批量处理 · 强加密</span>
           </div>
-          <img src="img/p2.png" alt="批量处理界面截图：批量加密与批量解密" loading="lazy" data-page-node-id="shotBatchImg">
+          <img src="img/p2.png" alt="批量处理界面截图 v2.4：批量加密与批量解密，含「强加密」勾选框" loading="lazy" data-page-node-id="shotBatchImg">
         </div>
       </div>
     </div>
@@ -1361,7 +1366,7 @@ footer{
             <p data-page-node-id="3HYbMIE0zHPzaYvHMZHNpd">安装版来自微软应用商店，绿色版解压即用。<br data-page-node-id="ctaBr">均无需联网、无后台服务，个人非商业用途完全免费。</p>
             <div class="dl-row" data-page-node-id="dlRow">
               <a href="#" class="btn btn-primary" title="打开微软应用商店安装页（发布后替换为真实商店链接）" data-page-node-id="zDDP8JbPXsbbAB7L5Q7Bdq">⬇️ 下载安装包</a>
-              <a href="office_sensitive_encryptor_v23.zip" class="btn btn-outline-light" download data-page-node-id="dlZipBtn">📦 下载绿色 Zip 包</a>
+              <a href="office_sensitive_encryptor_v24.zip" class="btn btn-outline-light" download data-page-node-id="dlZipBtn">📦 下载绿色 Zip 包</a>
             </div>
             <div class="cta-meta" data-page-node-id="fC1ufymemhvqGn6Uj8vxAR">
               <span data-page-node-id="Eg2eaeVKEKet1uo5bb6jGV">🪟 Windows 原生</span>

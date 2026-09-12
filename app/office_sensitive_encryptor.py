@@ -1,8 +1,14 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Office文档敏感词加解密工具 v2.3
+Office文档敏感词加解密工具 v2.4
 支持格式: Word(.docx), Excel(.xlsx), PowerPoint(.pptx)
+v2.4 更新内容:
+1. 新增"强加密"模式（单文件加密、批量加密均可勾选）：
+   - 替换串与敏感词不再等长：敏感词长度为 L 时，替换串长度在 [L, 2L] 间随机
+   - 每个敏感词生成 5~10 个不同的英文字符串，文档中每次出现随机选用其一
+   - 两个特征同时生效，显著提高从密文反推敏感词的难度
+2. 解密完全自动适配：标准/强加密词表均可解密，无需手动选择
 v2.3 更新内容:
 1. 词表加密升级为 AES-256-GCM（此前为 AES-128-CBC，说明书宣称 AES-256 不实），
    同时兼容解密 v2.2 生成的 Fernet 格式词表
@@ -34,20 +40,29 @@ from abc import ABC, abstractmethod
 
 USER_MANUAL_CONTENT = """══════════════════════════════════════════════════════════════════
                     Office敏感词加解密工具 — 使用说明书
-                              版本: v2.3
+                              版本: v2.4
 ══════════════════════════════════════════════════════════════════
 
 【一、软件简介】
 
 本工具支持对 Microsoft Office 三件套（Word、Excel、PowerPoint）
-文档中的敏感词汇进行等长英文字符替换加密，并采用 AES-256-GCM
+文档中的敏感词汇进行英文字符替换加密，并采用 AES-256-GCM
 算法对词表进行加密保护。加密后的文档外观保持正常排版，敏感词被
 替换为随机英文字符串，只有通过配套词表和密码才能还原原文。
+标准模式使用与敏感词等长的随机字符串；勾选"强加密"后，替换串
+长度在 L~2L 间随机且每个敏感词配备 5~10 个不同字符串逐处随机
+替换，隐蔽性更强。
 
 支持格式:
   • Word 文档      (.docx)
   • Excel 工作簿   (.xlsx)
   • PowerPoint 演示文稿 (.pptx)
+
+v2.4 新增:
+  • 强加密模式：替换串不再等长（长度 L~2L 随机），每个敏感词
+    配备 5~10 个不同英文字符串，文档中每次出现随机换用，单文件
+    加密与批量加密均可勾选
+  • 解密自动适配标准/强加密词表，无需手动选择
 
 v2.3 新增:
   • 批量处理：可对一个目录中的文档批量加密 / 批量解密
@@ -72,9 +87,10 @@ v2.3 新增:
 
 右侧页签一「单文件处理」:
   • 左栏-文档加密: 选择 Office 文档、设置解密密码、
-    一键加密，生成加密文档 + 加密词表
+    可勾选"强加密"提升替换复杂度，一键加密，生成
+    加密文档 + 加密词表
   • 右栏-文档解密: 选择加密后的文档、配套 .enc 加密词表、
-    输入密码，一键还原
+    输入密码，一键还原（自动识别标准/强加密）
 
 右侧页签二「批量处理」:
   • 批量加密: 选择源目录与输出目录，加密整个目录中的文档
@@ -94,8 +110,11 @@ v2.3 新增:
   2. 点击"加载示例词表"可快速体验功能
   3. 在"文档加密"面板中，点击"浏览..."选择要加密的 Office 文档
   4. 在"密码"框中设置解密密码（请务必牢记）
-  5. 点击"一键加密"，选择保存位置
-  6. 程序将生成两个文件:
+  5. 如需更强隐蔽性，勾选密码框旁的"强加密"：替换串长度在
+     L~2L 间随机，每个敏感词配备 5~10 个不同字符串，文档中
+     同一敏感词的每次出现都会被替换成不同的英文字符串
+  6. 点击"一键加密"，选择保存位置
+  7. 程序将生成两个文件:
        xxx_encrypted.docx  — 加密后的文档
        xxx_vocab.enc       — 加密后的词表（必须妥善保管）
 
@@ -109,11 +128,13 @@ v2.3 新增:
 ▶ 批量加密流程:
   1. 在"批量处理"面板中，选择源目录（存放待加密文档的文件夹）
   2. 选择输出目录（留空则输出到源目录）
-  3. 输入密码
+  3. 输入密码；勾选"强加密（批量加密生效）"则整批文档采用
+     变长、多变体随机替换（与单文件强加密规则相同）
   4. 点击"批量加密"
   5. 目录内所有 .docx/.xlsx/.pptx 文件将被逐一加密。
      默认生成一个共享词表 _batch_vocab.enc；
-     勾选"每文件独立词表"则每个文件生成配套 _vocab.enc
+     勾选"每文件独立词表"则每个文件生成配套 _vocab.enc；
+     强加密可与上述两种词表模式任意组合
 
 ▶ 批量解密流程:
   1. 选择加密文档所在目录
@@ -128,8 +149,10 @@ v2.3 新增:
   ⚠ 加密词表 (.enc) 必须与加密文档配套使用，不可混用；
     v2.3 起程序会校验文档指纹，混用将提示"文档与词表不匹配"。
   ⚠ 建议将加密文档和加密词表分开保管，提高安全性。
-  ⚠ 加密后的文档中，敏感词被替换为等长英文字符串，文档
-    排版和格式基本保持不变，可直接用于日常流转。
+  ⚠ 加密后的文档中，敏感词被替换为英文字符串，文档
+    排版和格式基本保持不变，可直接用于日常流转。标准模式
+    为等长替换；强加密替换串长度为 L~2L，局部行宽可能略有
+    变化，但不影响文档打开与正常阅读。
   ⚠ 本工具采用零宽空格标记技术，确保解密时不会误替换文档
     中原本存在的正常英文内容。
   ⚠ v2.3 起词表使用 AES-256-GCM 认证加密；v2.2 生成的词表
@@ -192,6 +215,21 @@ A: 数字/日期单元格不会参与替换，可避免类型被破坏。若敏�
 Q7: 批量加密支持子目录吗？
 A: v2.3 仅处理所选目录的直接文件（不递归子目录）。
 
+Q8: "强加密"和标准模式有什么区别？该怎么选？
+A: 标准模式：每个敏感词只对应 1 个等长英文字符串，文中
+   所有相同敏感词都被替换成同一个串，替换前后长度不变。
+   强加密：敏感词长度为 L 时，替换串长度在 L~2L 之间随机；
+   每个敏感词一次性生成 5~10 个不同字符串，文中每次出现
+   随机换用其一。这样无法通过"密文出现频率/长度"反推敏感
+   词，抗分析能力更强。强加密仅影响加密环节，解密时程序
+   自动识别词表类型，操作步骤完全一样；两种模式生成的词表
+   互不通用（各自与文档指纹绑定）。
+
+Q9: 强加密后文档排版变化比标准模式明显，正常吗？
+A: 正常。强加密的替换串可能比原敏感词长（最长 2 倍），局部
+   文字行宽会有细微变化；字体、字号、加粗、颜色等字符格式
+   依旧保留，不影响打开、浏览和打印。
+
 
 【八、技术支持】
 
@@ -206,7 +244,7 @@ A: v2.3 仅处理所选目录的直接文件（不递归子目录）。
 
 COPYRIGHT_CONTENT = """══════════════════════════════════════════════════════════════════
                     Office敏感词加解密工具 — 版权声明与授权协议
-                              版本: v2.3
+                              版本: v2.4
                          版权所有 © Sam Li
                          联系邮箱: samstay@sina.com
 ══════════════════════════════════════════════════════════════════
@@ -611,8 +649,29 @@ class RunsContainer:
         return "".join(r.text for r in self.runs)
 
 
-def replace_in_runs(container, old_text: str, new_text: str) -> int:
-    """在 run 序列中替换文本，支持跨 run 匹配；返回替换次数"""
+def replace_each_choice(text: str, old_text: str, choices: list):
+    """把 text 中 old_text 的每一次出现分别替换为 choices 中随机一项。
+    非重叠扫描，从左到右定位；返回 (新文本, 替换次数)。"""
+    parts = []
+    count = 0
+    i = 0
+    while True:
+        idx = text.find(old_text, i)
+        if idx == -1:
+            parts.append(text[i:])
+            break
+        parts.append(text[i:idx])
+        parts.append(secrets.choice(choices))
+        i = idx + len(old_text)
+        count += 1
+    return "".join(parts), count
+
+
+def replace_in_runs(container, old_text: str, new_text: str, choices: list = None) -> int:
+    """在 run 序列中替换文本，支持跨 run 匹配；返回替换次数。
+    - choices 为 None：所有出现统一替换为 new_text（标准模式/解密）
+    - choices 为列表：每次出现随机选用其中一个字符串（强加密模式）
+    """
     if old_text not in container.text:
         return 0
 
@@ -623,17 +682,19 @@ def replace_in_runs(container, old_text: str, new_text: str) -> int:
         full_text += run.text
         run_map.append((start, start + len(run.text), run))
 
-    count = 0
+    # 一次性、非重叠地定位所有出现位置，并为每处选定替换串
     positions = []
     start = 0
     while True:
         idx = full_text.find(old_text, start)
         if idx == -1:
             break
-        positions.append(idx)
+        replacement = secrets.choice(choices) if choices else new_text
+        positions.append((idx, replacement))
         start = idx + len(old_text)
 
-    for pos in reversed(positions):
+    count = 0
+    for pos, replacement in reversed(positions):
         count += 1
         end_pos = pos + len(old_text)
         first_idx = None
@@ -653,7 +714,7 @@ def replace_in_runs(container, old_text: str, new_text: str) -> int:
                 merged_text += run_map[i][2].text
 
             offset = pos - run_map[first_idx][0]
-            new_merged = merged_text[:offset] + new_text + merged_text[offset + len(old_text):]
+            new_merged = merged_text[:offset] + replacement + merged_text[offset + len(old_text):]
 
             run_map[first_idx][2].text = new_merged
             for i in range(first_idx + 1, last_idx + 1):
@@ -693,6 +754,31 @@ class DocumentProcessor(ABC):
     @abstractmethod
     def file_type(self) -> str:
         pass
+
+    def _build_items(self, mappings: dict, mode: str):
+        """把映射统一规整为 [(old_text, [replacement, ...]), ...] 有序替换项。
+        - 标准模式：mappings 值为字符串（每个敏感词 1 个等长替换串）
+        - 强加密模式：mappings 值为字符串列表（每个敏感词 5~10 个变长替换串）
+        加密：old=敏感词，new=替换串+零宽标记
+        解密：old=替换串+零宽标记，new=敏感词（强加密的每个替换串各占一项）
+        长词优先，避免短词误伤。
+        """
+        items = []
+        if mode == "encrypt":
+            for word, value in mappings.items():
+                if isinstance(value, list):
+                    items.append((word, [v + self.MARKER for v in value]))
+                else:
+                    items.append((word, [value + self.MARKER]))
+        else:
+            for word, value in mappings.items():
+                if isinstance(value, list):
+                    for v in value:
+                        items.append((v + self.MARKER, [word]))
+                else:
+                    items.append((value + self.MARKER, [word]))
+        items.sort(key=lambda x: len(x[0]), reverse=True)
+        return items
 
 
 class WordProcessor(DocumentProcessor):
@@ -743,17 +829,16 @@ class WordProcessor(DocumentProcessor):
                     yield from build_containers(ftr, p_el)
 
     def replace_all(self, mappings: dict, mode: str) -> int:
-        if mode == "encrypt":
-            replace_map = {k: v + self.MARKER for k, v in mappings.items()}
-        else:
-            replace_map = {v + self.MARKER: k for k, v in mappings.items()}
-
-        sorted_items = sorted(replace_map.items(), key=lambda x: len(x[0]), reverse=True)
+        items = self._build_items(mappings, mode)
         total = 0
 
         for container in self._iter_text_containers():
-            for old_text, new_text in sorted_items:
-                total += replace_in_runs(container, old_text, new_text)
+            for old_text, replacements in items:
+                if len(replacements) == 1:
+                    total += replace_in_runs(container, old_text, replacements[0])
+                else:
+                    # 强加密：同词每次出现随机选用不同替换串
+                    total += replace_in_runs(container, old_text, None, choices=replacements)
 
         return total
 
@@ -784,12 +869,7 @@ class ExcelProcessor(DocumentProcessor):
             return False
 
     def replace_all(self, mappings: dict, mode: str) -> int:
-        if mode == "encrypt":
-            replace_map = {k: v + self.MARKER for k, v in mappings.items()}
-        else:
-            replace_map = {v + self.MARKER: k for k, v in mappings.items()}
-
-        sorted_items = sorted(replace_map.items(), key=lambda x: len(x[0]), reverse=True)
+        items = self._build_items(mappings, mode)
         total = 0
         self.skipped_warnings = []
 
@@ -797,12 +877,17 @@ class ExcelProcessor(DocumentProcessor):
             ws = self.wb[sheet_name]
             for row in ws.iter_rows():
                 for cell in row:
-                    for old_text, new_text in sorted_items:
-                        total += self._replace_in_cell(cell, old_text, new_text)
+                    for old_text, replacements in items:
+                        if len(replacements) == 1:
+                            total += self._replace_in_cell(cell, old_text, replacements[0])
+                        else:
+                            # 强加密：同词每次出现随机选用不同替换串
+                            total += self._replace_in_cell(cell, old_text, None,
+                                                           choices=replacements)
 
         return total
 
-    def _replace_in_cell(self, cell, old_text: str, new_text: str) -> int:
+    def _replace_in_cell(self, cell, old_text: str, new_text, choices: list = None) -> int:
         value = cell.value
         if value is None:
             return 0
@@ -816,6 +901,13 @@ class ExcelProcessor(DocumentProcessor):
         if isinstance(value, (int, float, Decimal)):
             s = str(value)
             if old_text not in s:
+                return 0
+            # 强加密替换串为变长字母串，替换后不可能保持数字类型，直接跳过
+            if choices:
+                self.skipped_warnings.append(
+                    f"单元格 {cell.coordinate} 的数字含敏感词 '{old_text}'，"
+                    f"强加密替换串无法保持数字类型，已跳过（如需处理请将列格式设为文本）"
+                )
                 return 0
             new_s = s.replace(old_text, new_text)
             try:
@@ -846,6 +938,8 @@ class ExcelProcessor(DocumentProcessor):
         if old_text not in cell_val_str:
             return 0
 
+        pick = choices if choices else [new_text]
+
         if is_rich:
             full_text = "".join(str(block) for block in value)
             if old_text not in full_text:
@@ -856,16 +950,18 @@ class ExcelProcessor(DocumentProcessor):
             for block in value:
                 block_text = str(block)
                 if old_text in block_text:
+                    replaced, n = replace_each_choice(block_text, old_text, pick)
                     if hasattr(block, "text"):
-                        block.text = block_text.replace(old_text, new_text)
+                        block.text = replaced
                     else:
                         idx = value.index(block)
-                        value[idx] = block_text.replace(old_text, new_text)
-                    count += block_text.count(old_text)
+                        value[idx] = replaced
+                    count += n
                     found_in_block = True
 
             if not found_in_block:
-                new_full = full_text.replace(old_text, new_text)
+                # 敏感词跨越多个格式块：合并为纯文本（内容正确，格式合并）
+                new_full, count = replace_each_choice(full_text, old_text, pick)
                 if len(value) > 0:
                     first_block = value[0]
                     if hasattr(first_block, "text"):
@@ -877,13 +973,12 @@ class ExcelProcessor(DocumentProcessor):
                             value[i].text = ""
                         else:
                             value[i] = ""
-                count = full_text.count(old_text)
 
             return count
         else:
-            original = cell_val_str
-            cell.value = original.replace(old_text, new_text)
-            return original.count(old_text)
+            new_val, count = replace_each_choice(cell_val_str, old_text, pick)
+            cell.value = new_val
+            return count
 
     def save(self, path: str) -> bool:
         try:
@@ -912,33 +1007,34 @@ class PptProcessor(DocumentProcessor):
             return False
 
     def replace_all(self, mappings: dict, mode: str) -> int:
-        if mode == "encrypt":
-            replace_map = {k: v + self.MARKER for k, v in mappings.items()}
-        else:
-            replace_map = {v + self.MARKER: k for k, v in mappings.items()}
-
-        sorted_items = sorted(replace_map.items(), key=lambda x: len(x[0]), reverse=True)
+        items = self._build_items(mappings, mode)
         total = 0
+
+        def replace_para(para):
+            nonlocal total
+            for old_text, replacements in items:
+                if len(replacements) == 1:
+                    total += replace_in_runs(para, old_text, replacements[0])
+                else:
+                    # 强加密：同词每次出现随机选用不同替换串
+                    total += replace_in_runs(para, old_text, None, choices=replacements)
 
         for slide in self.prs.slides:
             for shape in slide.shapes:
                 if shape.has_text_frame:
                     for para in shape.text_frame.paragraphs:
-                        for old_text, new_text in sorted_items:
-                            total += replace_in_runs(para, old_text, new_text)
+                        replace_para(para)
 
                 if shape.has_table:
                     for row in shape.table.rows:
                         for cell in row.cells:
                             for para in cell.text_frame.paragraphs:
-                                for old_text, new_text in sorted_items:
-                                    total += replace_in_runs(para, old_text, new_text)
+                                replace_para(para)
 
             if slide.has_notes_slide:
                 notes_slide = slide.notes_slide
                 for para in notes_slide.notes_text_frame.paragraphs:
-                    for old_text, new_text in sorted_items:
-                        total += replace_in_runs(para, old_text, new_text)
+                    replace_para(para)
 
         return total
 
@@ -969,6 +1065,8 @@ def get_processor(file_path: str) -> DocumentProcessor:
 
 class SubstitutionEngine:
     CHARS = string.ascii_letters
+    STRONG_MIN_VARIANTS = 5
+    STRONG_MAX_VARIANTS = 10
 
     @classmethod
     def generate(cls, length: int) -> str:
@@ -976,6 +1074,7 @@ class SubstitutionEngine:
 
     @classmethod
     def create_mapping(cls, words: list) -> dict:
+        """标准模式：每个敏感词 -> 1 个等长随机英文字符串 {word: sub}"""
         mapping = {}
         used = set()
         for word in words:
@@ -988,6 +1087,34 @@ class SubstitutionEngine:
                     used.add(sub)
                     break
             mapping[word] = sub
+        return mapping
+
+    @classmethod
+    def create_strong_mapping(cls, words: list) -> dict:
+        """强加密模式：每个敏感词 -> 5~10 个随机英文字符串 {word: [sub,...]}
+        - 每个字符串长度在 [L, 2L] 之间随机（L = 敏感词长度）
+        - 同一敏感词在文档中的每次出现，随机选用其中一个字符串替换
+        """
+        mapping = {}
+        used = set()
+        word_set = {w.strip() for w in words if w.strip()}
+        for word in words:
+            word = word.strip()
+            if not word:
+                continue
+            length = len(word)
+            variant_count = cls.STRONG_MIN_VARIANTS + \
+                secrets.randbelow(cls.STRONG_MAX_VARIANTS - cls.STRONG_MIN_VARIANTS + 1)
+            variants = []
+            while len(variants) < variant_count:
+                # 长度随机落在 [L, 2L]
+                sub_len = length + secrets.randbelow(length + 1)
+                sub = cls.generate(sub_len)
+                if sub in used or sub in word_set:
+                    continue
+                used.add(sub)
+                variants.append(sub)
+            mapping[word] = variants
         return mapping
 
 
@@ -1223,6 +1350,8 @@ class EncryptFrame(ttk.LabelFrame):
         self.show_pwd_var = tk.BooleanVar()
         ttk.Checkbutton(pwd_frame, text="显示", variable=self.show_pwd_var,
                        command=self.toggle_pwd).pack(side=tk.LEFT, padx=5)
+        self.strong_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(pwd_frame, text="强加密", variable=self.strong_var).pack(side=tk.LEFT, padx=5)
 
         btn_frame = ttk.Frame(self)
         btn_frame.pack(fill=tk.X, pady=5)
@@ -1303,9 +1432,11 @@ class EncryptFrame(ttk.LabelFrame):
         if strategy == "cancel":
             return
 
+        strong = self.strong_var.get()  # 主线程读取 tk 变量
+
         self.encrypt_btn.config(state=tk.DISABLED)
         self.log("=" * 40)
-        self.log("开始加密...")
+        self.log("开始加密（强加密模式）..." if strong else "开始加密...")
 
         self.task = TaskThread(
             self.app.root,
@@ -1313,17 +1444,25 @@ class EncryptFrame(ttk.LabelFrame):
             on_done=lambda err: self._encrypt_done(err, enc_doc_path, enc_vocab_path)
         )
         self.task.start(self._encrypt_worker, words, password, save_dir,
-                        enc_doc_path, enc_vocab_path)
+                        enc_doc_path, enc_vocab_path, strong)
 
-    def _encrypt_worker(self, words, password, save_dir, enc_doc_path, enc_vocab_path):
+    def _encrypt_worker(self, words, password, save_dir, enc_doc_path, enc_vocab_path,
+                        strong=False):
         """后台线程执行：生成映射 → 替换文档 → 保存 → 计算加密文档指纹 → 加密词表"""
         log = lambda m: self.task.q.put(("log", m))
 
         log("正在生成替换映射...")
-        mappings = SubstitutionEngine.create_mapping(words)
+        if strong:
+            log("强加密：每个敏感词生成 5~10 个、长度 L~2L 的随机替换串，逐处随机选用")
+            mappings = SubstitutionEngine.create_strong_mapping(words)
+        else:
+            mappings = SubstitutionEngine.create_mapping(words)
         log("替换映射表:")
         for w, m in mappings.items():
-            log(f"  {w} -> {m}")
+            if isinstance(m, list):
+                log(f"  {w} -> [{len(m)} 个] " + ", ".join(m))
+            else:
+                log(f"  {w} -> {m}")
 
         log(f"正在处理{self.processor.file_type}文档: {Path(self.doc_path).name}...")
         if not self.processor.load(self.doc_path):
@@ -1336,8 +1475,9 @@ class EncryptFrame(ttk.LabelFrame):
         # 文档指纹绑定：记录加密后文档的 SHA-256
         log("正在计算文档指纹...")
         doc_hash = compute_file_sha256(enc_doc_path)
-        vocab_data = {"version": "2.3", "words": words,
-                      "mappings": mappings, "doc_hash": doc_hash}
+        vocab_data = {"version": "2.4", "words": words,
+                      "mappings": mappings, "doc_hash": doc_hash,
+                      "strong": strong}
 
         log("正在加密词表 (AES-256-GCM)...")
         encrypted_vocab = CryptoEngine.encrypt_vocab(vocab_data, password)
@@ -1516,9 +1656,14 @@ class DecryptFrame(ttk.LabelFrame):
             log("提示: 该词表由旧版本生成，未包含文档指纹，跳过校验")
 
         log(f"词表解密成功，包含 {len(words)} 个词汇")
+        log("词表类型: " + ("强加密（多变体变长替换）" if vocab_data.get("strong") else "标准加密"))
         log("替换映射表:")
         for w, m in mappings.items():
-            log(f"  {m} -> {w}")
+            if isinstance(m, list):
+                for v in m:
+                    log(f"  {v} -> {w}")
+            else:
+                log(f"  {m} -> {w}")
 
         log(f"正在处理{self.processor.file_type}文档: {Path(self.doc_path).name}...")
         if not self.processor.load(self.doc_path):
@@ -1573,6 +1718,8 @@ class BatchFrame(ttk.LabelFrame):
                         command=self.toggle_pwd).pack(side=tk.LEFT, padx=2)
         self.independent_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(pwd_row, text="每文件独立词表", variable=self.independent_var).pack(side=tk.LEFT, padx=16)
+        self.strong_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(pwd_row, text="强加密（批量加密生效）", variable=self.strong_var).pack(side=tk.LEFT, padx=8)
         ttk.Label(pwd_row, text="批量加密与批量解密共用此密码",
                   foreground="gray").pack(side=tk.LEFT, padx=8)
 
@@ -1700,6 +1847,7 @@ class BatchFrame(ttk.LabelFrame):
             return
 
         independent = self.independent_var.get()  # 主线程读取 tk 变量
+        strong = self.strong_var.get()
 
         # 预计算目标路径，主线程检查覆盖
         targets = []
@@ -1725,9 +1873,10 @@ class BatchFrame(ttk.LabelFrame):
             on_done=lambda err: self._batch_done(err, "encrypt", files, out_dir)
         )
         self.task.start(self._batch_encrypt_worker, words, password, files, out_dir,
-                        strategy, independent)
+                        strategy, independent, strong)
 
-    def _batch_encrypt_worker(self, words, password, files, out_dir, strategy, independent):
+    def _batch_encrypt_worker(self, words, password, files, out_dir, strategy,
+                              independent, strong=False):
         log = lambda m: self.task.q.put(("log", m))
         os.makedirs(out_dir, exist_ok=True)
         total = len(files)
@@ -1743,7 +1892,10 @@ class BatchFrame(ttk.LabelFrame):
                     processor = get_processor(f)
                     if not processor.load(f):
                         raise RuntimeError("文档加载失败")
-                    mappings = SubstitutionEngine.create_mapping(words)
+                    if strong:
+                        mappings = SubstitutionEngine.create_strong_mapping(words)
+                    else:
+                        mappings = SubstitutionEngine.create_mapping(words)
                     count = processor.replace_all(mappings, mode="encrypt")
 
                     ext = Path(f).suffix
@@ -1756,8 +1908,9 @@ class BatchFrame(ttk.LabelFrame):
                         raise RuntimeError("加密文档保存失败")
 
                     doc_hash = compute_file_sha256(enc_doc)
-                    vocab_data = {"version": "2.3", "words": words,
-                                  "mappings": mappings, "doc_hash": doc_hash}
+                    vocab_data = {"version": "2.4", "words": words,
+                                  "mappings": mappings, "doc_hash": doc_hash,
+                                  "strong": strong}
                     enc_vocab = os.path.join(out_dir, f"{Path(f).stem}_vocab.enc")
                     with open(enc_vocab, "wb") as wf:
                         wf.write(CryptoEngine.encrypt_vocab(vocab_data, password))
@@ -1769,11 +1922,19 @@ class BatchFrame(ttk.LabelFrame):
         else:
             # 共享映射 + 共享词表
             log("正在生成共享替换映射...")
-            mappings = SubstitutionEngine.create_mapping(words)
+            if strong:
+                log("强加密：每个敏感词 5~10 个、长度 L~2L 的随机替换串，逐处随机选用")
+                mappings = SubstitutionEngine.create_strong_mapping(words)
+            else:
+                mappings = SubstitutionEngine.create_mapping(words)
             for w, m in mappings.items():
-                log(f"  {w} -> {m}")
-            vocab_data = {"version": "2.3", "words": words,
-                          "mappings": mappings, "doc_hashes": []}
+                if isinstance(m, list):
+                    log(f"  {w} -> [{len(m)} 个] " + ", ".join(m))
+                else:
+                    log(f"  {w} -> {m}")
+            vocab_data = {"version": "2.4", "words": words,
+                          "mappings": mappings, "doc_hashes": [],
+                          "strong": strong}
 
             for i, f in enumerate(files, 1):
                 log(f"[{i}/{total}] 处理: {Path(f).name}")
@@ -1876,6 +2037,7 @@ class BatchFrame(ttk.LabelFrame):
             mappings = vocab_data.get("mappings", {})
             doc_hashes = vocab_data.get("doc_hashes", [])
             log(f"词表解密成功，包含 {len(words)} 个词汇，{len(doc_hashes)} 个文档指纹")
+            log("词表类型: " + ("强加密（多变体变长替换）" if vocab_data.get("strong") else "标准加密"))
 
             for i, f in enumerate(enc_files, 1):
                 log(f"[{i}/{total}] 处理: {Path(f).name}")
@@ -1978,7 +2140,7 @@ class BatchFrame(ttk.LabelFrame):
 class MainApp:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Office敏感词加解密工具 v2.3")
+        self.root.title("Office敏感词加解密工具 v2.4")
         self.root.geometry("1120x900")
         try:
             self.root.state("zoomed")   # Windows 最大化；其它平台不支持时忽略
@@ -2103,14 +2265,14 @@ class MainApp:
 
         copyright_label = ttk.Label(
             title_frame,
-            text="  版权所有 © Sam Li  |  邮箱: samstay@sina.com  |  v2.3",
+            text="  版权所有 © Sam Li  |  邮箱: samstay@sina.com  |  v2.4",
             font=("Microsoft YaHei", 9),
             foreground="#666666"
         )
         copyright_label.pack(side=tk.LEFT, padx=(10, 0), pady=5)
 
         desc = ttk.Label(header,
-                        text="支持Word(.docx)、Excel(.xlsx)、PowerPoint(.pptx) 的敏感词替换加密 · AES-256-GCM 词表保护 · 支持批量处理",
+                        text="支持Word(.docx)、Excel(.xlsx)、PowerPoint(.pptx) 的敏感词替换加密 · AES-256-GCM 词表保护 · 强加密多变体替换 · 支持批量处理",
                         font=("Microsoft YaHei", 9), foreground="#666666")
         desc.pack(pady=5, anchor=tk.W)
 

@@ -424,10 +424,143 @@ def t_restore_name():
     assert restore_doc_name("a.b.c_encrypted.xlsx") == "a.b.c.xlsx"
     check("restore_doc_name 文件名恢复边界", True)
 
+# ================= 7. 强加密：映射规则 / Word 回环 / Excel 类型保护 =================
+def t_strong_mapping_rules():
+    for words in (["机"], ["机密", "薪"], ["身份证号", "密码", "A"]):
+        mapping = SubstitutionEngine.create_strong_mapping(words)
+        assert set(mapping.keys()) == set(words)
+        all_subs = []
+        for word in words:
+            variants = mapping[word]
+            L = len(word)
+            assert isinstance(variants, list)
+            assert 5 <= len(variants) <= 10, f"变体数应在5~10: {len(variants)}"
+            assert len(set(variants)) == len(variants), "同词变体必须互不相同"
+            for s in variants:
+                assert L <= len(s) <= 2 * L, f"长度须在[L,2L]: {word}->{s}"
+                assert all(('a' <= c <= 'z') or ('A' <= c <= 'Z') for c in s), \
+                    "替换串只能含英文字母"
+                assert s != word
+            all_subs.extend(variants)
+        assert len(set(all_subs)) == len(all_subs), "跨词替换串也不应重复"
+    check("强加密映射：每词5~10变体 / 长度L~2L / 纯字母 / 全局唯一", True)
+
+
+def t_strong_word_roundtrip():
+    from docx import Document
+    src_doc = os.path.join(TMP, "strong_src.docx")
+    enc_doc = os.path.join(TMP, "strong_enc.docx")
+    dec_doc = os.path.join(TMP, "strong_dec.docx")
+    doc = Document()
+    # “机密”出现 30 次，足够观察到多个不同变体被实际使用
+    doc.add_paragraph("机密" * 30)
+    doc.add_paragraph("另一段含薪酬与机密")
+    doc.save(src_doc)
+
+    mappings = SubstitutionEngine.create_strong_mapping(["机密", "薪酬"])
+
+    proc = WordProcessor()
+    assert proc.load(src_doc)
+    n = proc.replace_all(mappings, mode="encrypt")
+    assert n >= 31, f"替换次数异常: {n}"
+    assert proc.save(enc_doc)
+
+    enc = Document(enc_doc)
+    text = "\n".join(p.text for p in enc.paragraphs)
+    xml = enc.element.body.xml
+    assert "机密" not in text and "机密" not in xml, "强加密后仍含敏感词"
+    assert "薪酬" not in text
+    # 30 次重复出现应实际命中多个不同变体（带零宽标记）
+    marker = "​"
+    hit_variants = {v + marker for v in mappings["机密"] if (v + marker) in text}
+    assert len(hit_variants) >= 2, f"多出现处应使用多个变体，实际 {len(hit_variants)}"
+
+    # 解密：直接用同一份强加密映射，内部自动展开全部变体
+    proc2 = WordProcessor()
+    assert proc2.load(enc_doc)
+    n2 = proc2.replace_all(mappings, mode="decrypt")
+    assert n2 >= 31
+    assert proc2.save(dec_doc)
+    dec = Document(dec_doc)
+    text2 = "\n".join(p.text for p in dec.paragraphs)
+    assert "机密" * 30 in text2, "重复敏感词未完整恢复"
+    assert "另一段含薪酬与机密" in text2
+    assert marker not in text2, "零宽标记残留"
+    check("强加密 Word：多变体实际生效且解密完整回环", True, f"{n}+{n2}次")
+
+
+def t_strong_excel():
+    import openpyxl
+    src_x = os.path.join(TMP, "strong_x_src.xlsx")
+    enc_x = os.path.join(TMP, "strong_x_enc.xlsx")
+    dec_x = os.path.join(TMP, "strong_x_dec.xlsx")
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws["A1"] = "文本机密内容机密"   # 2 次出现
+    ws["A2"] = 123456              # 数字含“123”，强加密无法保持类型 -> 跳过
+    ws["A3"] = "普通文本"
+    wb.save(src_x)
+
+    mappings = SubstitutionEngine.create_strong_mapping(["机密", "123"])
+    proc = ExcelProcessor()
+    assert proc.load(src_x)
+    n = proc.replace_all(mappings, mode="encrypt")
+    assert proc.save(enc_x)
+    assert any("A2" in w for w in proc.skipped_warnings), \
+        f"强加密应跳过数字单元格并提示: {proc.skipped_warnings}"
+
+    wb2 = openpyxl.load_workbook(enc_x)
+    v = wb2.active["A1"].value
+    assert "机密" not in v
+    assert wb2.active["A2"].value == 123456, "数字单元格应原样保留"
+    # 同一格内两次出现使用了不同变体
+    variants = mappings["机密"]
+    inside = [s for s in variants if s in v]
+    assert len(inside) >= 1
+
+    proc2 = ExcelProcessor()
+    assert proc2.load(enc_x)
+    proc2.replace_all(mappings, mode="decrypt")
+    assert proc2.save(dec_x)
+    wb3 = openpyxl.load_workbook(dec_x)
+    assert wb3.active["A1"].value == "文本机密内容机密"
+    check("强加密 Excel：文本逐处随机替换 + 数字类型保护跳过", True)
+
+
+def t_batch_strong_shared():
+    src = os.path.join(TMP, "batch_strong_src")
+    out1 = os.path.join(TMP, "batch_strong_out")
+    out2 = os.path.join(TMP, "batch_strong_restore")
+    build_batch_src(src)
+    bf = make_batch_frame(independent=False)
+    files = BatchFrame.list_office_files(src)
+    bf._batch_encrypt_worker(["机密", "薪酬"], "pw1234", files, out1, "ok", False, True)
+    drain_logs(bf.task)
+    assert os.path.exists(os.path.join(out1, "_batch_vocab.enc"))
+    # 共享词表应带 strong=True 且映射值为列表
+    with open(os.path.join(out1, "_batch_vocab.enc"), "rb") as f:
+        vd = CryptoEngine.decrypt_vocab(f.read(), "pw1234")
+    assert vd.get("strong") is True
+    assert all(isinstance(v, list) and 5 <= len(v) <= 10 for v in vd["mappings"].values())
+
+    encs = [f for f in os.listdir(out1) if f.endswith((".docx", ".xlsx", ".pptx"))]
+    enc_files = [os.path.join(out1, f) for f in encs]
+    shared = os.path.join(out1, "_batch_vocab.enc")
+    bf2 = make_batch_frame(independent=False)
+    bf2._batch_decrypt_worker("pw1234", enc_files, out1, out2, "ok", True, shared)
+    restored = read_batch_out(out2)
+    joined = "\n".join(restored.values())
+    assert "机密" in joined, "强加密批量解密未恢复原文"
+    assert "​" not in joined, "零宽标记残留"
+    check("批量强加密（共享词表）→ 自动识别并解密回环", True)
+
+
 # ================= 运行 =================
 tests = [t_crypto, t_legacy_fernet, t_word_roundtrip, t_excel_roundtrip,
          t_ppt_roundtrip, t_binding, t_batch_shared, t_batch_independent,
-         t_binding_batch_reject, t_restore_name]
+         t_binding_batch_reject, t_restore_name,
+         t_strong_mapping_rules, t_strong_word_roundtrip,
+         t_strong_excel, t_batch_strong_shared]
 
 for t in tests:
     try:
