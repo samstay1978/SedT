@@ -20,11 +20,14 @@ REM  Outputs: msix_packaging\app\OfficeSensitiveEncryptor.exe (+ word\ + 2 txt)
 REM           msix_packaging\dist_msix\OfficeSensitiveEncryptor.msix
 REM
 REM  Modes:
-REM    build.bat           -> pack MSIX without signing
-REM                           (Microsoft Store submission mode)
-REM    build.bat sign      -> pack and sign the MSIX
-REM                           (side-loading; needs mycert.pfx in
-REM                            msix_packaging, edit CERT_PWD there)
+REM    build.bat              -> pack MSIX without signing
+REM                             (Microsoft Store submission mode)
+REM    build.bat sign         -> pack and sign the MSIX
+REM                             (side-loading; needs mycert.pfx in
+REM                              msix_packaging)
+REM    build.bat PASSWORD <p> -> pass the certificate password for
+REM                             signing (forwarded as CERT_PWD), e.g.
+REM                             build.bat sign PASSWORD mysecret
 REM
 REM  Requirements: Windows 10/11 with Python 3.9+ installed
 REM ============================================================
@@ -63,13 +66,18 @@ start "" /wait "%EXE%" --gen-files
 if not exist "%APP_DIR%\*.txt" goto :err_txt
 
 echo [7/7] Packing MSIX from the app folder...
-if /i "%~1"=="sign" goto :pack_sign
-call msix_packaging\build_msix.bat nosign auto
-if errorlevel 1 goto :err_msix
-goto :finish
-
-:pack_sign
-call msix_packaging\build_msix.bat sign auto
+set MSIX_ARGS=nosign auto
+:parse_pwd
+if "%~1"=="" goto :msix_go
+if /i "%~1"=="sign" set MSIX_ARGS=sign auto
+if /i "%~1"=="PASSWORD" (
+    set MSIX_ARGS=%MSIX_ARGS% PASSWORD "%~2"
+    shift
+)
+shift
+goto :parse_pwd
+:msix_go
+call msix_packaging\build_msix.bat %MSIX_ARGS%
 if errorlevel 1 goto :err_msix
 goto :finish
 
@@ -138,6 +146,7 @@ echo    msix: %cd%\%MSIX%
 echo.
 echo  - Store submission: submit the .msix to Partner Center
 echo    (the Store re-signs it - no certificate needed)
-echo  - Side-loading:    run build_msix.bat manually with mycert.pfx
+echo  - Side-loading:    build.bat sign PASSWORD ^<pfx-password^>
+echo                     (needs mycert.pfx in msix_packaging)
 echo ============================================================
 pause

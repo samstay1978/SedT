@@ -54,9 +54,10 @@
 
   两种模式：
     build.bat            → MSIX 不签名（商店提交模式）
-    build.bat sign       → MSIX 签名（侧载分发；需 mycert.pfx，
-                           并在 msix_packaging\build_msix.bat 中
-                           把 CERT_PWD 改成你的证书密码）
+    build.bat sign       → MSIX 签名（侧载分发；需 mycert.pfx）
+    build.bat sign PASSWORD <证书密码>
+                         → 同上，证书密码经 PASSWORD 参数
+                           传入 CERT_PWD（不再改脚本）
 
   完成后直接得到 .msix，无需再手动复制任何文件。
 
@@ -94,6 +95,10 @@
      - build_msix.bat            → 打包 + 签名（侧载）
      - build_msix.bat nosign     → 打包不签名（商店提交）
      - build_msix.bat [模式] auto→ 非交互模式（供 build.bat 调用）
+     - build_msix.bat PASSWORD <证书密码>
+                                 → 签名用证书密码（传入 CERT_PWD，
+                                   签名模式必填），例：
+                                   build_msix.bat PASSWORD 我的密码
 
   B) 需要 Windows SDK（提供 makeappx.exe）
      安装（任选其一）：
@@ -126,9 +131,10 @@
          Export-PfxCertificate -Cert $cert -FilePath .\mycert.pfx -Password $pwd
        第3步 放置并配置：
          · 把 mycert.pfx 放到 msix_packaging\ 目录；
-         · 用记事本打开 msix_packaging\build_msix.bat，
-           把 CERT_PWD=YOUR_PFX_PASSWORD 改成你的证书密码；
-         · 之后 build_msix.bat（签名模式）自动签名。
+         · 签名时用 PASSWORD 参数传入证书密码（无需改脚本）：
+             build_msix.bat PASSWORD 你的证书密码
+             或 build.bat sign PASSWORD 你的证书密码；
+         · 之后签名模式自动签名（未传密码时脚本会明确报错提示）。
        第4步（可选）重新导出：证书已装在存储里，以后想再导出 pfx：
          $cert = Get-ChildItem Cert:\CurrentUser\My |
                  Where-Object {$_.Subject -eq "CN=Sam Li"}

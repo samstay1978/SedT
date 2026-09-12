@@ -10,6 +10,8 @@ REM
 
 REM  Modes:
 
+REM    build_msix.bat [mode] [auto] [PASSWORD <pfx-password>]
+
 REM    build_msix.bat              -> pack and sign (side-loading)
 
 REM    build_msix.bat nosign       -> pack only, NO signing
@@ -21,6 +23,14 @@ REM        package automatically, so no cert is needed)
 REM    build_msix.bat [mode] auto  -> non-interactive (no pause);
 
 REM       used by build.bat as the last step of the pipeline
+
+REM    PASSWORD <pwd>              -> certificate password, passed to
+
+REM       CERT_PWD for signing; required in sign mode. Examples:
+
+REM         build_msix.bat PASSWORD mysecret
+
+REM         build_msix.bat sign auto PASSWORD mysecret
 
 REM
 
@@ -52,15 +62,44 @@ set OUT=%OUT_DIR%\OfficeSensitiveEncryptor.msix
 
 set CERT=%~dp0mycert.pfx
 
-set CERT_PWD=YOUR_PFX_PASSWORD
+REM --- parse arguments: [sign|nosign] [auto] [PASSWORD <pfx-password>] ---
 
+set MODE=sign
 
-
-REM auto mode (called from build.bat) -> suppress pause prompts
+set CERT_PWD=
 
 set PAUSE_CMD=pause
 
-if /i "%~2"=="auto" set PAUSE_CMD=
+:parse_args
+
+if "%~1"=="" goto :args_done
+
+if /i "%~1"=="sign" set MODE=sign
+
+if /i "%~1"=="nosign" set MODE=nosign
+
+if /i "%~1"=="auto" set PAUSE_CMD=
+
+if /i "%~1"=="PASSWORD" (
+    set "CERT_PWD=%~2"
+    shift
+)
+
+shift
+
+goto :parse_args
+
+:args_done
+
+REM sign mode needs the pfx password (pass it with: PASSWORD <pwd>)
+
+if not "%CERT_PWD%"=="" goto :pwd_ok
+
+if "%MODE%"=="nosign" goto :pwd_ok
+
+goto :err_pwd
+
+:pwd_ok
 
 
 
@@ -70,7 +109,7 @@ if not exist "%APP_DIR%\OfficeSensitiveEncryptor.exe" goto :err_exe
 
 if not exist "%APP_DIR%\word" goto :err_word
 
-if /i "%~1"=="nosign" goto :locate_tools
+if "%MODE%"=="nosign" goto :locate_tools
 
 if not exist "%CERT%" goto :err_cert
 
@@ -118,7 +157,7 @@ if errorlevel 1 goto :err_pack
 
 
 
-if /i "%~1"=="nosign" goto :nosign_done
+if "%MODE%"=="nosign" goto :nosign_done
 
 echo [2/2] Signing package...
 
@@ -191,6 +230,24 @@ echo   $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Sam 
 echo   $pwd  = ConvertTo-SecureString -String "YOUR_PFX_PASSWORD" -Force -AsPlainText
 
 echo   Export-PfxCertificate -Cert $cert -FilePath mycert.pfx -Password $pwd
+
+%PAUSE_CMD%
+
+exit /b 1
+
+
+
+:err_pwd
+
+echo.
+
+echo ERROR: signing mode needs the certificate password.
+
+echo Pass it with the PASSWORD parameter, e.g.:
+
+echo   build_msix.bat PASSWORD ^<your-pfx-password^>
+
+echo   build.bat sign PASSWORD ^<your-pfx-password^>
 
 %PAUSE_CMD%
 
