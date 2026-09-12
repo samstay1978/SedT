@@ -166,10 +166,9 @@ v2.3 新增:
   1. 桌面图标
      - 在桌面创建「Office敏感词加解密工具」快捷方式；
      - MSIX 安装后 exe 位于系统受限目录（WindowsApps），普通用户
-       无法直接执行该路径，快捷方式因此自动指向每用户「应用执行
-       别名」（%LOCALAPPDATA%\\Microsoft\\WindowsApps\\
-       OfficeSensitiveEncryptor.exe），双击即可正常启动，且 MSIX
-       升级后别名路径不变、快捷方式始终有效；
+       无法直接执行该路径；快捷方式因此经 explorer.exe 打开
+       shell:AppsFolder\<包系列名>!<应用ID>（系统应用模型激活）
+       启动，双击即可正常运行，MSIX 升级后始终有效；
      - MSIX 每次启动都会校验并重建快捷方式，无需手动处理。
 
   2. 文件右键菜单
@@ -472,14 +471,12 @@ def _get_package_family_name() -> str:
 
 def ensure_desktop_shortcut():
     """MSIX/打包后首次启动：创建（或修正）桌面快捷方式。
-    MSIX 下 exe 本体位于 WindowsApps 受限目录，普通用户进程无法直接执行
-    该路径，快捷方式必须经由以下入口启动：
-      1) 每用户应用执行别名 %LOCALAPPDATA%\\Microsoft\\WindowsApps\\ 下的
-         OfficeSensitiveEncryptor.exe（清单已声明 AppExecutionAlias；
-         路径不含版本号，MSIX 升级后依旧有效，优先使用）；
-      2) 别名尚未注册时，回退为 explorer.exe 打开
-         shell:AppsFolder\\<包系列名>!<AppId>（应用模型激活，始终可用）。
-    普通 exe 打包环境仍直接指向 exe 本体。MSIX 每次启动都重建快捷方式。"""
+    MSIX 下 exe 本体位于 WindowsApps 受限目录，普通用户进程无法直接
+    执行该路径（直接指向 exe 的快捷方式双击报"无法访问"），因此快捷
+    方式经 explorer.exe 打开 shell:AppsFolder\\<包系列名>!<应用ID>，
+    走系统应用模型激活，任何 Windows 10+ 环境均可用；若检测到每用户
+    应用执行别名存在则优先使用别名路径。普通 exe 打包环境仍直接指向
+    exe 本体。MSIX 每次启动都重建快捷方式，升级后自动跟随。"""
     if not getattr(sys, "frozen", False) or not sys.platform.startswith("win"):
         return
     try:

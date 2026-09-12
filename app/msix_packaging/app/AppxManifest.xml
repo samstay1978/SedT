@@ -8,9 +8,8 @@
 -->
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
          xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
-         xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
          xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-         IgnorableNamespaces="uap uap3 rescap">
+         IgnorableNamespaces="uap rescap">
 
   <!-- 身份：包名 / 发布者（=证书 Subject）/ 版本(Major.Minor.Build.Revision) -->
   <Identity Name="samstay.OfficeSensitiveEncryptor"
@@ -47,18 +46,13 @@
                           Square44x44Logo="Assets\Square44x44Logo.png"
                           Description="Office 文档（Word/Excel/PPT）敏感词替换加密工具"
                           BackgroundColor="transparent" />
-      <!-- 应用执行别名：为当前用户生成
-           %LOCALAPPDATA%\Microsoft\WindowsApps\OfficeSensitiveEncryptor.exe。
-           MSIX 下 exe 本体位于 WindowsApps 受限目录，普通用户进程不能直接
-           执行该路径；桌面快捷方式（程序首启自动创建）即指向本别名，
-           双击可正常启动，且 MSIX 升级后别名路径稳定不变。 -->
-      <Extensions>
-        <uap3:Extension Category="windows.appExecutionAlias">
-          <uap3:AppExecutionAlias>
-            <uap3:ExecutionAlias Alias="OfficeSensitiveEncryptor.exe" />
-          </uap3:AppExecutionAlias>
-        </uap3:Extension>
-      </Extensions>
+      <!-- 桌面快捷方式说明：MSIX 下 exe 本体位于 WindowsApps 受限目录，
+           普通用户进程不能直接执行该路径；程序首启自动创建的桌面快捷
+           方式经 explorer.exe 打开 shell:AppsFolder\<包系列名>!<应用ID>
+           （系统应用模型激活）启动，双击可正常打开，升级后始终有效。
+           注意：不要在此声明 uap3 AppExecutionAlias 执行别名扩展——
+           部分 Windows SDK 版本的 makeappx 对该扩展的子元素校验存在
+           兼容性问题（报 C00CE014），会导致打包失败。 -->
     </Application>
   </Applications>
 

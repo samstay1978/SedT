@@ -76,11 +76,12 @@
     （管理员 PowerShell；未签名包需开发者模式或证书信任）。
   - 桌面图标与右键菜单：打包版首次启动会自动创建
     （桌面快捷方式 + .docx/.xlsx/.pptx 右键"加密/解密"菜单）。
-    MSIX 下桌面快捷方式指向每用户"应用执行别名"
-    （%LOCALAPPDATA%\Microsoft\WindowsApps\OfficeSensitiveEncryptor.exe，
-    由清单中的 AppExecutionAlias 声明生成）——MSIX 的 exe 本体位于
-    WindowsApps 受限目录不可直接执行，别名路径不随升级变化，
-    因此快捷方式始终有效。
+    MSIX 的 exe 本体位于 WindowsApps 受限目录不可直接执行，
+    桌面快捷方式因此经 explorer.exe 打开
+    shell:AppsFolder\<包系列名>!<应用ID>（系统应用模型激活）
+    启动，不受该目录权限限制，MSIX 升级后始终有效。
+    注意：清单不要声明 uap3 AppExecutionAlias 扩展——部分 Windows
+    SDK 版本的 makeappx 对该扩展校验存在兼容性问题（C00CE014）。
   - 词表(.enc)、加密文档等数据文件由用户自选保存目录，
     请勿放在 C:\Program Files 等系统只读目录。
 
