@@ -1,0 +1,240 @@
+﻿══════════════════════════════════════════════════════════════════
+  Office 敏感词加解密工具 — 编译打包指南（一条龙）
+══════════════════════════════════════════════════════════════════
+
+一、文件清单与目录结构
+
+  OfficeSensitiveEncryptor/                （项目根目录）
+  ├─ office_sensitive_encryptor.py          主程序（源码）
+  ├─ test_encryptor.py                      逻辑回归测试（10 项）
+  ├─ office_sensitive_encryptor.spec        PyInstaller 打包配置
+  ├─ build.bat                              一条龙编译打包脚本
+  ├─ PACKAGING_GUIDE.txt                 本文件（打包指南）
+  └─ msix_packaging/
+     ├─ build_msix.bat                      MSIX 打包脚本（可单独用）
+     ├─ app/                                ← 输出目录（build.bat 生成）
+     │  ├─ AppxManifest.xml                 MSIX 清单（已就位）
+     │  ├─ Assets/                          应用图标（已就位）
+     │  ├─ OfficeSensitiveEncryptor.exe     ← 编译产物（自动生成）
+     │  ├─ README.txt                      ← 使用说明书（自动生成）
+     │  └─ LICENSE.txt                     ← 版权声明与授权协议（自动生成）
+     └─ dist_msix/
+        └─ OfficeSensitiveEncryptor.msix    ← 最终 MSIX 产物（自动生成）
+
+  输入目录 = 项目根目录（源码 + 测试 + spec）
+  输出目录 = msix_packaging\app\（exe + 说明书）
+              msix_packaging\dist_msix\（.msix 安装包）
+
+──────────────────────────────────────────────────────────────────
+
+二、一条龙流水线（推荐）
+
+  前提：Windows 10/11 + Python 3.9+（安装时勾选 Add python.exe to PATH）
+        + Windows SDK（提供 makeappx.exe，见第四节）
+
+  双击 build.bat，自动完成 6 步：
+
+    [1] 检查 Python 环境
+    [2] 安装打包/运行依赖
+    [3] 运行逻辑自检（test_encryptor.py，10 项回归）
+    [4] PyInstaller 编译 → msix_packaging\app\OfficeSensitiveEncryptor.exe
+    [5] 运行 exe --gen-files → 自动生成两个 txt（说明书/版权声明）
+    [6] 打包 app 目录 → msix_packaging\dist_msix\OfficeSensitiveEncryptor.msix
+
+  两种模式：
+    build.bat            → MSIX 不签名（商店提交模式）
+    build.bat sign       → MSIX 签名（侧载分发；需 mycert.pfx，
+                           并在 msix_packaging\build_msix.bat 中
+                           把 CERT_PWD 改成你的证书密码）
+
+  完成后直接得到 .msix，无需再手动复制任何文件。
+
+──────────────────────────────────────────────────────────────────
+
+三、产物说明
+
+  - msix_packaging\app\OfficeSensitiveEncryptor.exe 为单文件版，
+    也可单独分发：双击即用，首次运行自动在同级生成两个 txt。
+  - msix_packaging\dist_msix\OfficeSensitiveEncryptor.msix
+    为 MSIX 安装包：Add-AppxPackage -Path 该文件 即可安装
+    （管理员 PowerShell；未签名包需开发者模式或证书信任）。
+  - 桌面图标与右键菜单：打包版首次启动会自动创建
+    （桌面快捷方式 + .docx/.xlsx/.pptx 右键"加密/解密"菜单），
+    MSIX 更新后自动修正路径。
+  - 词表(.enc)、加密文档等数据文件由用户自选保存目录，
+    请勿放在 C:\Program Files 等系统只读目录。
+
+──────────────────────────────────────────────────────────────────
+
+四、MSIX 打包细节
+
+  A) build_msix.bat 单独使用（不跑 build.bat 时）
+     - 先确保 msix_packaging\app\ 里有 exe（复制或跑 build.bat）
+     - build_msix.bat            → 打包 + 签名（侧载）
+     - build_msix.bat nosign     → 打包不签名（商店提交）
+     - build_msix.bat [模式] auto→ 非交互模式（供 build.bat 调用）
+
+  B) 需要 Windows SDK（提供 makeappx.exe）
+     安装（任选其一）：
+       · 方式1（最简单）：Microsoft Store 搜索 "Windows SDK" → 安装
+         （免费官方工具，约 1GB）；
+       · 方式2：官网下载
+         https://developer.microsoft.com/windows/downloads/windows-sdk/
+       ★ 安装时务必勾选 "Windows SDK for Desktop C++ x86 Apps"
+         组件——makeappx.exe 就在这个组件里。
+     安装后验证（能打印出路径即成功）：
+       dir /s /b "%ProgramFiles(x86)%\Windows Kits\10\bin\makeappx.exe"
+     若未找到：可在 build_msix.bat 里手动指定 MAKEAPPX 完整路径：
+       set MAKEAPPX=C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64\makeappx.exe
+     替代方案：Microsoft Store 安装 "MSIX Packaging Tool"
+       （官方免费图形工具，适合手动打包，不走脚本）。
+
+  C) 证书（仅签名模式需要）
+     ★ mycert.pfx 如何获得（完整流程，PowerShell 执行）：
+       第1步 生成自签名代码签名证书：
+         $cert = New-SelfSignedCertificate -Type CodeSigningCert `
+             -Subject "CN=Sam Li" -CertStoreLocation Cert:\CurrentUser\My
+         · -Subject 必须与 app\AppxManifest.xml 的
+           Publisher="CN=Sam Li" 完全一致，否则安装报错；
+         · 默认有效期 1 年，想延长（如 5 年）：
+           $cert = New-SelfSignedCertificate -Type CodeSigningCert `
+               -Subject "CN=Sam Li" -CertStoreLocation Cert:\CurrentUser\My `
+               -NotAfter (Get-Date).AddYears(5)
+       第2步 导出为 pfx（证书+私钥，需密码保护）：
+         $pwd = ConvertTo-SecureString -String "你的证书密码" -Force -AsPlainText
+         Export-PfxCertificate -Cert $cert -FilePath .\mycert.pfx -Password $pwd
+       第3步 放置并配置：
+         · 把 mycert.pfx 放到 msix_packaging\ 目录；
+         · 用记事本打开 msix_packaging\build_msix.bat，
+           把 CERT_PWD=YOUR_PFX_PASSWORD 改成你的证书密码；
+         · 之后 build_msix.bat（签名模式）自动签名。
+       第4步（可选）重新导出：证书已装在存储里，以后想再导出 pfx：
+         $cert = Get-ChildItem Cert:\CurrentUser\My |
+                 Where-Object {$_.Subject -eq "CN=Sam Li"}
+         $pwd = ConvertTo-SecureString -String "原密码" -Force -AsPlainText
+         Export-PfxCertificate -Cert $cert -FilePath mycert.pfx -Password $pwd
+     ★ 证书安全：pfx 含私钥=签名身份，切勿上传网盘/发给他人，
+       密码勿写进提交公开仓库的文件；证书只用于本机测试和侧载，
+       正式对外分发走商店（免证书）或商业证书。
+     - 正式分发：购买支持 MSIX 的商业代码签名证书
+       （DigiCert / Sectigo / GlobalSign，SHA-256 + 时间戳）。
+     - 若证书 Subject 不是 CN=Sam Li，需同步修改 app\AppxManifest.xml
+       里的 Publisher 属性（必须与证书完全一致）。
+     - 若证书丢失且未导出过 pfx，可从存储重新导出（见第4步）。
+
+  D) 目录打包原理
+     MSIX 就是"一个目录"的打包格式：app\ 目录 = 包内容。
+     build_msix.bat 本质执行：
+       makeappx pack /d app /p dist_msix\OfficeSensitiveEncryptor.msix /l
+     想改图标：替换 app\Assets\ 下的同名 PNG
+     （Square44x44Logo.png / Square150x150Logo.png / StoreLogo.png）。
+
+──────────────────────────────────────────────────────────────────
+
+五、上架 Microsoft Store：不需要自己签名
+
+  结论：上架微软商店【不需要】购买/提供代码签名证书。
+  官方明确说明：商店会对提交的 MSIX 包自动重新签名（微软证书），
+  用户安装时不会出现 SmartScreen 警告。
+  → build.bat（或 build_msix.bat nosign）产出的未签名 .msix
+    可直接提交商店。
+
+  哪些情况才需要自己的证书？
+    1. 侧载分发（官网/网盘下载，不经商店）→ 需要签名
+       （或用户开启开发者模式）；
+    2. 以 MSI/EXE 安装器形式提交商店 → 需自签 Authenticode。
+
+  上架商店的前置门槛（与证书无关）：
+    1. 注册开发者账号 partner.microsoft.com → Windows 开发者
+       - 个人开发者：新流程免注册费（原 19 美元已取消），
+         需政府签发的身份证件 + 人脸验证；
+       - 企业账号：需公司主体验证（付费）。
+    2. 保留应用名称："Office敏感词加解密工具"
+       （英文名建议同时预留 samstay.OfficeSensitiveEncryptor）。
+    3. 提交应用：上传 .msix，填写商店列表（简介/截图/类别/定价）。
+    4. 通过商店认证：微软自动测试 + 人工审核
+       （桌面全信任应用一般顺利；需注意商店政策）。
+
+  提交商店的包要求（build.bat 已满足）：
+    - AppxManifest.xml 的 Publisher 建议与开发者账号显示名对应；
+    - 版本号四段式（当前 2.3.0.0，商店提交前建议按需递增）；
+    - 图标合规（Assets 占位图可先提交，正式上架建议替换）。
+
+──────────────────────────────────────────────────────────────────
+
+六、MSIX 沙箱下的说明书写入（重要提醒）
+
+  MSIX 安装目录是只读的。build.bat 预先把两个 txt 打进包内，
+  安装后程序从安装目录读取并打开说明书——正常可用，无需改动。
+
+  但如果希望 MSIX 沙箱内也能"写入/更新"说明书（例如后续
+  需要往可写目录落数据），则需给程序加数据目录适配：
+  get_data_dir() 使用 %LOCALAPPDATA%\OfficeSensitiveEncryptor，
+  并把 ensure_manual_files() / open_text_file() 的目录改为它。
+  当前版本未启用该适配（包内预置 txt 已覆盖打开场景）。
+
+──────────────────────────────────────────────────────────────────
+
+七、常见问题
+
+  Q1: 杀毒软件报毒/拦截？
+  A: PyInstaller 打包的程序无数字签名，部分杀软会误报。
+     添加信任即可；上架商店后由微软签名，不再误报。
+
+  Q2: 打包后 exe 双击无反应 / 闪退？
+  A: 先在命令行手动运行 exe 看报错；最常见原因是缺少 VC 运行库，
+     安装 "Microsoft Visual C++ Redistributable (x64)" 后重试。
+
+  Q3: exe 体积为什么约 50MB？
+  A: 包含 Python 运行时 + tkinter + cryptography(C 扩展) + 三个
+     Office 解析库，属正常体积（spec 已剔除无用模块）。
+
+  Q4: 能换图标吗？
+  A: 可以。已内置 icon.ico（项目根，16~256 多尺寸），exe 文件
+     图标、运行中窗口/任务栏图标、桌面快捷方式图标三者统一
+     （快捷方式 lnk 指向 exe，自动跟随）。想换：替换 icon.ico
+     后重跑 build.bat 即可；MSIX 图标：替换 app\Assets\ 下的
+     同名 PNG。
+
+  Q5: 旧版（v2.2）的加密词表还能用吗？
+  A: 能。程序兼容解密 Fernet/AES-128 旧格式词表。
+
+  Q6: 安装 MSIX 报错 0x800B010A（无法验证发布者证书）？
+  A: 这是证书链不受信任导致，原因是自签名证书的根未被系统信任。
+     三种解法（任选其一）：
+     ① 信任证书（管理员 PowerShell，最彻底）：
+       ★ 先说明：mycert.cer 不是现成文件，它是"不含私钥的
+         公钥证书"，需要从你的证书里导出。证书生成时已装入
+         当前用户\个人 存储（Cert:\CurrentUser\My），所以：
+         （途径A：证书已在存储中，最常见）
+           先导出 cer（无需管理员）：
+             $cert = Get-ChildItem Cert:\CurrentUser\My ^|
+                     Where-Object {$_.Subject -eq "CN=Sam Li"}
+             Export-Certificate -Cert $cert -FilePath mycert.cer
+           再导入受信任根存储（这一步需要管理员）：
+             Import-Certificate -FilePath .\mycert.cer
+                                    -CertStoreLocation Cert:\LocalMachine\Root
+         （途径B：手头只有 mycert.pfx，证书没装进存储）
+           ★ 先确认 pfx 在当前目录（否则报"找不到文件"）：
+             Test-Path .\mycert.pfx
+           不在当前目录则 cd 到 pfx 所在目录（如 msix_packaging）
+           或用完整路径：".\msix_packaging\mycert.pfx"。
+           然后从 pfx 提取 cer：
+             $pfx = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2(
+                        ".\mycert.pfx", "你的证书密码")
+             [System.IO.File]::WriteAllBytes(
+                        ".\mycert.cer",
+                        $pfx.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+           然后同样执行上面的 Import-Certificate 命令。
+           ★ 提示：只要生成过 New-SelfSignedCertificate，证书就在
+             系统存储里，直接走途径A即可，无需 pfx。
+       ★ 为什么签名用 pfx、信任用 cer？pfx = 证书+私钥（签名
+         必须），cer = 仅公钥证书（供系统信任，不含私钥更安全）。
+     ② 开启开发人员模式（设置 → 隐私和安全性 → 开发者选项
+        → 开发人员模式），允许旁加载不受信任证书的包；
+     ③ 上架微软商店（推荐正式分发）：商店用微软证书自动重签，
+        用户安装不会出现此错误，也无需任何证书操作。
+     注意：若证书 Subject 与包 Publisher（CN=Sam Li）不一致，
+     也会安装失败，请保持两者完全一致。
+
+══════════════════════════════════════════════════════════════════

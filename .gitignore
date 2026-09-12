@@ -1,7 +1,23 @@
-# 私钥证书，绝不能上传
-mycert.pfx
-mycert.cer
+# ===== 代码签名证书（含私钥，绝不能上传）=====
+*.pfx
+*.cer
+*.p12
+*.key
 
-# 本地构建产物
-app/
+# ===== Python / PyInstaller 构建中间产物 =====
+app/build/
+__pycache__/
+*.py[cod]
+
+# ===== 打包产物（exe / MSIX 由构建流水线生成，不入仓库）=====
+app/msix_packaging/app/OfficeSensitiveEncryptor.exe
+app/msix_packaging/dist_msix/
+*.msix
+*.exe
+
+# 程序运行/打包时自动释放的说明书副本
+app/msix_packaging/app/README.txt
+app/msix_packaging/app/LICENSE.txt
+
+# ===== 其它 =====
 *.zip
