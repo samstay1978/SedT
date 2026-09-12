@@ -8,8 +8,9 @@
 -->
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
          xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+         xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
          xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-         IgnorableNamespaces="uap rescap">
+         IgnorableNamespaces="uap uap3 rescap">
 
   <!-- 身份：包名 / 发布者（=证书 Subject）/ 版本(Major.Minor.Build.Revision) -->
   <Identity Name="samstay.OfficeSensitiveEncryptor"
@@ -46,6 +47,18 @@
                           Square44x44Logo="Assets\Square44x44Logo.png"
                           Description="Office 文档（Word/Excel/PPT）敏感词替换加密工具"
                           BackgroundColor="transparent" />
+      <!-- 应用执行别名：为当前用户生成
+           %LOCALAPPDATA%\Microsoft\WindowsApps\OfficeSensitiveEncryptor.exe。
+           MSIX 下 exe 本体位于 WindowsApps 受限目录，普通用户进程不能直接
+           执行该路径；桌面快捷方式（程序首启自动创建）即指向本别名，
+           双击可正常启动，且 MSIX 升级后别名路径稳定不变。 -->
+      <Extensions>
+        <uap3:Extension Category="windows.appExecutionAlias">
+          <uap3:AppExecutionAlias>
+            <uap3:ExecutionAlias Alias="OfficeSensitiveEncryptor.exe" />
+          </uap3:AppExecutionAlias>
+        </uap3:Extension>
+      </Extensions>
     </Application>
   </Applications>
 

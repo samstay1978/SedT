@@ -2,19 +2,21 @@
 REM ============================================================
 REM  Office Sensitive Word Encryptor - One-Click Build Pipeline (Windows)
 REM
-REM  Pipeline: source code -> exe -> manual/license txt -> MSIX
+REM  Pipeline: source code -> exe -> word assets -> manual/license txt -> MSIX
 REM    [1] Check Python
 REM    [2] Install build/runtime dependencies
 REM    [3] Run logic self-test (test_encryptor.py)
 REM    [4] Build exe with PyInstaller -> msix_packaging\app\
-REM    [5] Run the exe once (--gen-files) so it creates the two
+REM    [5] Copy word\ (demo vocabularies + sample documents) next to exe
+REM    [6] Run the exe once (--gen-files) so it creates the two
 REM        txt files (user manual + license) next to itself
-REM    [6] Pack the "app" folder into an MSIX
+REM    [7] Pack the "app" folder into an MSIX
 REM
 REM  Inputs : office_sensitive_encryptor.py
 REM           test_encryptor.py
 REM           office_sensitive_encryptor.spec
-REM  Outputs: msix_packaging\app\OfficeSensitiveEncryptor.exe  (+ 2 txt)
+REM           word\  (4 domain vocabularies + 4 sample .docx files)
+REM  Outputs: msix_packaging\app\OfficeSensitiveEncryptor.exe (+ word\ + 2 txt)
 REM           msix_packaging\dist_msix\OfficeSensitiveEncryptor.msix
 REM
 REM  Modes:
@@ -32,30 +34,35 @@ set APP_DIR=msix_packaging\app
 set EXE=%APP_DIR%\OfficeSensitiveEncryptor.exe
 set MSIX=msix_packaging\dist_msix\OfficeSensitiveEncryptor.msix
 
-echo [1/6] Checking Python environment...
+echo [1/7] Checking Python environment...
 where python >nul 2>nul
 if errorlevel 1 goto :err_python
 
-echo [2/6] Installing build and runtime dependencies...
+echo [2/7] Installing build and runtime dependencies...
 python -m pip install --upgrade pyinstaller python-docx openpyxl python-pptx cryptography
 if errorlevel 1 goto :err_deps
 
-echo [3/6] Running logic self-test (14 regression tests)...
+echo [3/7] Running logic self-test (14 regression tests)...
 python test_encryptor.py
 if errorlevel 1 goto :err_test
 
-echo [4/6] Building with PyInstaller (about 1-3 minutes)...
+echo [4/7] Building with PyInstaller (about 1-3 minutes)...
 mkdir "%APP_DIR%" 2>nul
 del /q "%APP_DIR%\*.txt" 2>nul
 python -m PyInstaller office_sensitive_encryptor.spec --noconfirm --distpath "%APP_DIR%"
 if errorlevel 1 goto :err_build
 if not exist "%EXE%" goto :err_exe
 
-echo [5/6] Running the exe once to generate manual and license files...
+echo [5/7] Copying demo vocabularies and sample documents (word dir)...
+xcopy "%~dp0word" "%APP_DIR%\word\" /e /i /y >nul
+if errorlevel 1 goto :err_word
+if not exist "%APP_DIR%\word\vocab_legal.json" goto :err_word
+
+echo [6/7] Running the exe once to generate manual and license files...
 start "" /wait "%EXE%" --gen-files
 if not exist "%APP_DIR%\*.txt" goto :err_txt
 
-echo [6/6] Packing MSIX from the app folder...
+echo [7/7] Packing MSIX from the app folder...
 if /i "%~1"=="sign" goto :pack_sign
 call msix_packaging\build_msix.bat nosign auto
 if errorlevel 1 goto :err_msix
@@ -101,6 +108,13 @@ echo ERROR: exe not found at %EXE%
 pause
 exit /b 1
 
+:err_word
+echo.
+echo ERROR: word directory with demo vocabularies not found next to build.bat.
+echo Expected: %~dp0word\vocab_legal.json (and 3 more vocabularies + 4 sample docx)
+pause
+exit /b 1
+
 :err_txt
 echo.
 echo ERROR: manual/license txt files were not generated in %APP_DIR%
@@ -118,6 +132,7 @@ echo.
 echo ============================================================
 echo  Pipeline complete.
 echo    exe : %cd%\%EXE%
+echo    word: demo vocabularies + sample documents next to the exe
 echo    txt : manual + license files next to the exe
 echo    msix: %cd%\%MSIX%
 echo.

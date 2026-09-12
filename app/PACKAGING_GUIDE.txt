@@ -1,4 +1,4 @@
-﻿══════════════════════════════════════════════════════════════════
+══════════════════════════════════════════════════════════════════
   Office 敏感词加解密工具 — 编译打包指南（一条龙）
 ══════════════════════════════════════════════════════════════════
 
@@ -6,23 +6,33 @@
 
   OfficeSensitiveEncryptor/                （项目根目录）
   ├─ office_sensitive_encryptor.py          主程序（源码）
-  ├─ test_encryptor.py                      逻辑回归测试（10 项）
+  ├─ test_encryptor.py                      逻辑回归测试（14 项）
   ├─ office_sensitive_encryptor.spec        PyInstaller 打包配置
   ├─ build.bat                              一条龙编译打包脚本
   ├─ PACKAGING_GUIDE.txt                 本文件（打包指南）
+  ├─ word/                                  领域词表 + 示例文档（随包分发）
+  │  ├─ vocab_legal.json                    法律领域词表（100+ 词）
+  │  ├─ vocab_finance.json                  金融领域词表（100+ 词）
+  │  ├─ vocab_military.json                 军工领域词表（100+ 词）
+  │  ├─ vocab_police.json                   公安领域词表（100+ 词）
+  │  ├─ sample_legal.docx                   法律领域示例文档
+  │  ├─ sample_finance.docx                 金融领域示例文档
+  │  ├─ sample_military.docx                军工领域示例文档
+  │  └─ sample_police.docx                  公安领域示例文档
   └─ msix_packaging/
      ├─ build_msix.bat                      MSIX 打包脚本（可单独用）
      ├─ app/                                ← 输出目录（build.bat 生成）
      │  ├─ AppxManifest.xml                 MSIX 清单（已就位）
      │  ├─ Assets/                          应用图标（已就位）
      │  ├─ OfficeSensitiveEncryptor.exe     ← 编译产物（自动生成）
+     │  ├─ word/                            ← 词表+示例文档（自动复制）
      │  ├─ README.txt                      ← 使用说明书（自动生成）
      │  └─ LICENSE.txt                     ← 版权声明与授权协议（自动生成）
      └─ dist_msix/
         └─ OfficeSensitiveEncryptor.msix    ← 最终 MSIX 产物（自动生成）
 
-  输入目录 = 项目根目录（源码 + 测试 + spec）
-  输出目录 = msix_packaging\app\（exe + 说明书）
+  输入目录 = 项目根目录（源码 + 测试 + spec + word\）
+  输出目录 = msix_packaging\app\（exe + word + 说明书）
               msix_packaging\dist_msix\（.msix 安装包）
 
 ──────────────────────────────────────────────────────────────────
@@ -32,14 +42,15 @@
   前提：Windows 10/11 + Python 3.9+（安装时勾选 Add python.exe to PATH）
         + Windows SDK（提供 makeappx.exe，见第四节）
 
-  双击 build.bat，自动完成 6 步：
+  双击 build.bat，自动完成 7 步：
 
     [1] 检查 Python 环境
     [2] 安装打包/运行依赖
-    [3] 运行逻辑自检（test_encryptor.py，10 项回归）
+    [3] 运行逻辑自检（test_encryptor.py，14 项回归）
     [4] PyInstaller 编译 → msix_packaging\app\OfficeSensitiveEncryptor.exe
-    [5] 运行 exe --gen-files → 自动生成两个 txt（说明书/版权声明）
-    [6] 打包 app 目录 → msix_packaging\dist_msix\OfficeSensitiveEncryptor.msix
+    [5] 复制 word\（4 领域词表 + 4 示例文档）→ msix_packaging\app\word\
+    [6] 运行 exe --gen-files → 自动生成两个 txt（说明书/版权声明）
+    [7] 打包 app 目录 → msix_packaging\dist_msix\OfficeSensitiveEncryptor.msix
 
   两种模式：
     build.bat            → MSIX 不签名（商店提交模式）
@@ -55,12 +66,21 @@
 
   - msix_packaging\app\OfficeSensitiveEncryptor.exe 为单文件版，
     也可单独分发：双击即用，首次运行自动在同级生成两个 txt。
+    分发时请把 word\ 目录一并放在 exe 同级（词表默认目录）。
+  - word\ 目录：程序运行目录下的词表资源目录，随包分发 4 个领域
+    词表（法律/金融/军工/公安，各 100+ 常见敏感词）与 4 个对应的
+    示例 Word 文档（用于演示加解密流程）。「加载词表」「保存词表」
+    对话框首次打开默认定位到该目录；用户也可自行选择其他位置。
   - msix_packaging\dist_msix\OfficeSensitiveEncryptor.msix
     为 MSIX 安装包：Add-AppxPackage -Path 该文件 即可安装
     （管理员 PowerShell；未签名包需开发者模式或证书信任）。
   - 桌面图标与右键菜单：打包版首次启动会自动创建
-    （桌面快捷方式 + .docx/.xlsx/.pptx 右键"加密/解密"菜单），
-    MSIX 更新后自动修正路径。
+    （桌面快捷方式 + .docx/.xlsx/.pptx 右键"加密/解密"菜单）。
+    MSIX 下桌面快捷方式指向每用户"应用执行别名"
+    （%LOCALAPPDATA%\Microsoft\WindowsApps\OfficeSensitiveEncryptor.exe，
+    由清单中的 AppExecutionAlias 声明生成）——MSIX 的 exe 本体位于
+    WindowsApps 受限目录不可直接执行，别名路径不随升级变化，
+    因此快捷方式始终有效。
   - 词表(.enc)、加密文档等数据文件由用户自选保存目录，
     请勿放在 C:\Program Files 等系统只读目录。
 
@@ -157,7 +177,7 @@
 
   提交商店的包要求（build.bat 已满足）：
     - AppxManifest.xml 的 Publisher 建议与开发者账号显示名对应；
-    - 版本号四段式（当前 2.3.0.0，商店提交前建议按需递增）；
+    - 版本号四段式（当前 2.4.0.0，商店提交前建议按需递增）；
     - 图标合规（Assets 占位图可先提交，正式上架建议替换）。
 
 ──────────────────────────────────────────────────────────────────

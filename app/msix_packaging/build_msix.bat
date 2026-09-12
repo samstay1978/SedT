@@ -26,7 +26,7 @@ REM
 
 REM  The "app" folder must contain:
 
-REM    OfficeSensitiveEncryptor.exe, AppxManifest.xml, Assets\
+REM    OfficeSensitiveEncryptor.exe, AppxManifest.xml, Assets\, word\
 
 REM    (build.bat produces all of these automatically)
 
@@ -67,6 +67,8 @@ if /i "%~2"=="auto" set PAUSE_CMD=
 if not exist "%APP_DIR%\AppxManifest.xml" goto :err_manifest
 
 if not exist "%APP_DIR%\OfficeSensitiveEncryptor.exe" goto :err_exe
+
+if not exist "%APP_DIR%\word" goto :err_word
 
 if /i "%~1"=="nosign" goto :locate_tools
 
@@ -155,6 +157,20 @@ exit /b 1
 echo.
 
 echo ERROR: copy OfficeSensitiveEncryptor.exe into the app\ folder first.
+
+%PAUSE_CMD%
+
+exit /b 1
+
+
+
+:err_word
+
+echo.
+
+echo ERROR: missing %APP_DIR%\word (demo vocabularies and sample documents).
+
+echo build.bat copies it automatically; or copy the word\ folder manually.
 
 %PAUSE_CMD%
 

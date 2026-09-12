@@ -165,8 +165,12 @@ v2.3 新增:
 
   1. 桌面图标
      - 在桌面创建「Office敏感词加解密工具」快捷方式；
-     - MSIX 每次更新后 exe 位置会变化，程序启动时会自动
-       修正快捷方式指向，无需手动重建。
+     - MSIX 安装后 exe 位于系统受限目录（WindowsApps），普通用户
+       无法直接执行该路径，快捷方式因此自动指向每用户「应用执行
+       别名」（%LOCALAPPDATA%\\Microsoft\\WindowsApps\\
+       OfficeSensitiveEncryptor.exe），双击即可正常启动，且 MSIX
+       升级后别名路径不变、快捷方式始终有效；
+     - MSIX 每次启动都会校验并重建快捷方式，无需手动处理。
 
   2. 文件右键菜单
      - 对 .docx / .xlsx / .pptx 文件右键，出现两个菜单项：
@@ -356,6 +360,17 @@ def get_app_dir() -> str:
     return os.path.dirname(os.path.abspath(__file__))
 
 
+def get_word_dir() -> str:
+    """词表目录：程序目录下的 word 子目录（内置领域词表 + 示例文档）。
+    不存在则自动创建；加载/保存词表对话框首次打开默认定位到该目录。"""
+    d = os.path.join(get_app_dir(), "word")
+    try:
+        os.makedirs(d, exist_ok=True)
+    except Exception:
+        d = get_app_dir()
+    return d
+
+
 def ensure_manual_files():
     """程序启动时，将内嵌的说明书内容释放到程序同级目录"""
     app_dir = get_app_dir()
@@ -434,23 +449,73 @@ def _run_powershell(script: str):
         return ""
 
 
+def _get_package_family_name() -> str:
+    """检测当前进程是否具有 MSIX 包身份：有则返回包系列名(PFN)，无则返回空串。
+    用于区分 MSIX 安装环境与普通 exe 打包环境。"""
+    if not sys.platform.startswith("win"):
+        return ""
+    try:
+        import ctypes
+        k32 = ctypes.windll.kernel32
+        n = ctypes.c_uint32(0)
+        # 传空缓冲区：预期返回 122(ERROR_INSUFFICIENT_BUFFER) 并写出所需字符数；
+        # 无包身份时返回 APPMODEL_ERROR_NO_PACKAGE(15700) 等其它值
+        if k32.GetPackageFamilyName(k32.GetCurrentProcess(), ctypes.byref(n), None) != 122:
+            return ""
+        buf = ctypes.create_unicode_buffer(n.value)
+        if k32.GetPackageFamilyName(k32.GetCurrentProcess(), ctypes.byref(n), buf) == 0:
+            return buf.value
+    except Exception:
+        pass
+    return ""
+
+
 def ensure_desktop_shortcut():
     """MSIX/打包后首次启动：创建（或修正）桌面快捷方式。
-    MSIX 更新后 exe 路径变化，每次启动都重建，保证指向当前 exe。"""
+    MSIX 下 exe 本体位于 WindowsApps 受限目录，普通用户进程无法直接执行
+    该路径，快捷方式必须经由以下入口启动：
+      1) 每用户应用执行别名 %LOCALAPPDATA%\\Microsoft\\WindowsApps\\ 下的
+         OfficeSensitiveEncryptor.exe（清单已声明 AppExecutionAlias；
+         路径不含版本号，MSIX 升级后依旧有效，优先使用）；
+      2) 别名尚未注册时，回退为 explorer.exe 打开
+         shell:AppsFolder\\<包系列名>!<AppId>（应用模型激活，始终可用）。
+    普通 exe 打包环境仍直接指向 exe 本体。MSIX 每次启动都重建快捷方式。"""
     if not getattr(sys, "frozen", False) or not sys.platform.startswith("win"):
         return
     try:
         exe = sys.executable
-        workdir = os.path.dirname(exe).replace("'", "''")
-        exe_q = exe.replace("'", "''")
+        pfn = _get_package_family_name()
+        if pfn:
+            alias = os.path.join(
+                os.environ.get("LOCALAPPDATA", ""),
+                "Microsoft", "WindowsApps", "OfficeSensitiveEncryptor.exe")
+            if os.path.exists(alias):
+                target, args = alias, ""
+                workdir = os.path.dirname(alias)
+                icon = alias
+            else:
+                target = os.path.join(os.environ.get("WINDIR", r"C:\Windows"),
+                                      "explorer.exe")
+                args = f"shell:AppsFolder\\{pfn}!OfficeSensitiveEncryptor"
+                workdir = os.path.dirname(exe)
+                icon = exe
+        else:
+            target, args = exe, ""
+            workdir = os.path.dirname(exe)
+            icon = exe
+        target_q = target.replace("'", "''")
+        args_q = args.replace("'", "''")
+        workdir_q = workdir.replace("'", "''")
+        icon_q = icon.replace("'", "''")
         script = (
             "$d=[Environment]::GetFolderPath('Desktop');"
             "if($d){"
             "$s=(New-Object -ComObject WScript.Shell).CreateShortcut("
             f"[System.IO.Path]::Combine($d,'Office敏感词加解密工具.lnk'));"
-            f"$s.TargetPath='{exe_q}';"
-            f"$s.WorkingDirectory='{workdir}';"
-            f"$s.IconLocation='{exe_q},0';"
+            f"$s.TargetPath='{target_q}';"
+            f"$s.Arguments='{args_q}';"
+            f"$s.WorkingDirectory='{workdir_q}';"
+            f"$s.IconLocation='{icon_q},0';"
             "$s.Save()}"
         )
         _run_powershell(script)
@@ -1286,6 +1351,7 @@ class VocabManagerFrame(ttk.LabelFrame):
     def load_vocab_file(self):
         path = filedialog.askopenfilename(
             title="选择词表文件",
+            initialdir=get_word_dir(),
             filetypes=[("词表文件", "*.json *.vocab"), ("所有文件", "*.*")]
         )
         if not path:
@@ -1305,6 +1371,7 @@ class VocabManagerFrame(ttk.LabelFrame):
             return
         path = filedialog.asksaveasfilename(
             title="保存词表",
+            initialdir=get_word_dir(),
             defaultextension=".json",
             filetypes=[("JSON文件", "*.json"), ("词表文件", "*.vocab"), ("所有文件", "*.*")]
         )
