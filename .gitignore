@@ -19,5 +19,8 @@ app/msix_packaging/dist_msix/
 app/msix_packaging/app/README.txt
 app/msix_packaging/app/LICENSE.txt
 
+# build.bat 第5步复制生成的 word 资源副本（源文件在 app/word/）
+app/msix_packaging/app/word/
+
 # ===== 其它 =====
 *.zip
