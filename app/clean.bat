@@ -9,6 +9,7 @@ REM
 REM  Deletes (generated only):
 REM    build\                                PyInstaller work dir
 REM    msix_packaging\dist_msix\             MSIX output folder
+REM    dist_zip\                             ZIP distribution output
 REM    msix_packaging\app\OfficeSensitiveEncryptor.exe
 REM    msix_packaging\app\README.txt         manual
 REM    msix_packaging\app\LICENSE.txt        license
@@ -51,11 +52,13 @@ if exist "build" (
 
 
 if exist "msix_packaging\dist_msix" (
-
     rmdir /s /q "msix_packaging\dist_msix"
-
     echo   removed dist_msix directory
+)
 
+if exist "dist_zip" (
+    rmdir /s /q "dist_zip"
+    echo   removed dist_zip directory
 )
 
 
