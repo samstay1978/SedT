@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
+r"""
 Office文档敏感词加解密工具 v2.4
 支持格式: Word(.docx), Excel(.xlsx), PowerPoint(.pptx)
 v2.4 更新内容:
@@ -38,7 +38,7 @@ from abc import ABC, abstractmethod
 
 # ==================== 内嵌说明书内容 ====================
 
-USER_MANUAL_CONTENT = """══════════════════════════════════════════════════════════════════
+USER_MANUAL_CONTENT = r"""══════════════════════════════════════════════════════════════════
                     Office敏感词加解密工具 — 使用说明书
                               版本: v2.4
 ══════════════════════════════════════════════════════════════════
@@ -183,6 +183,15 @@ v2.3 新增:
      - OfficeSensitiveEncryptor.exe --encrypt 文件路径
      - OfficeSensitiveEncryptor.exe --decrypt 文件路径
      - 直接拖拽文件到 exe 上启动，等同加密模式
+
+  4. ZIP 安装包（可选分发方式，默认安装到 Program Files）
+     - MSIX 的安装目录由系统强制为 WindowsApps，无法自定义；
+       若希望程序位于 C:\Program Files\OfficeSensitiveEncryptor，
+       请使用 ZIP 安装包：解压后右键 install.bat → 以管理员运行；
+     - 安装脚本自动完成首次启动（创建桌面图标与右键菜单），
+       说明书 README.txt 与版权声明也会释放到安装目录；
+     - 卸载：运行安装目录中的 uninstall.bat，自动清理桌面图标、
+       右键菜单与安装目录。
 
   注：以上功能仅在打包（exe/MSIX）后生效；源码方式运行时
       不会修改桌面与注册表。
@@ -453,20 +462,66 @@ def _get_package_family_name() -> str:
     用于区分 MSIX 安装环境与普通 exe 打包环境。"""
     if not sys.platform.startswith("win"):
         return ""
+    # 方法1：Win32 API GetPackageFamilyName（权威方法）
     try:
         import ctypes
         k32 = ctypes.windll.kernel32
+        # GetCurrentProcess() 返回指针大小的 HANDLE；ctypes 默认 c_int
+        # 在 64 位系统会截断伪句柄 (HANDLE)-1 = 0xFFFFFFFFFFFFFFFF，
+        # 导致 GetPackageFamilyName 无法识别当前进程，因此必须设 restype。
+        k32.GetCurrentProcess.restype = ctypes.c_void_p
+        k32.GetPackageFamilyName.argtypes = [
+            ctypes.c_void_p,                    # HANDLE hProcess
+            ctypes.POINTER(ctypes.c_uint32),    # UINT32 *len
+            ctypes.c_wchar_p,                   # PWSTR buf
+        ]
+        k32.GetPackageFamilyName.restype = ctypes.c_long  # LONG
+        proc = k32.GetCurrentProcess()
         n = ctypes.c_uint32(0)
-        # 传空缓冲区：预期返回 122(ERROR_INSUFFICIENT_BUFFER) 并写出所需字符数；
-        # 无包身份时返回 APPMODEL_ERROR_NO_PACKAGE(15700) 等其它值
-        if k32.GetPackageFamilyName(k32.GetCurrentProcess(), ctypes.byref(n), None) != 122:
+        if k32.GetPackageFamilyName(proc, ctypes.byref(n), None) != 122:
             return ""
         buf = ctypes.create_unicode_buffer(n.value)
-        if k32.GetPackageFamilyName(k32.GetCurrentProcess(), ctypes.byref(n), buf) == 0:
+        if k32.GetPackageFamilyName(proc, ctypes.byref(n), buf) == 0:
             return buf.value
     except Exception:
         pass
     return ""
+
+
+def _is_msix_environment() -> bool:
+    """快速判断当前是否运行在 MSIX 安装环境（exe 路径含 WindowsApps）。"""
+    if not getattr(sys, "frozen", False) or not sys.platform.startswith("win"):
+        return False
+    return "\\WindowsApps\\" in (sys.executable or "").replace("/", "\\")
+
+
+def _get_pfn_from_path() -> str:
+    """从 exe 路径提取包系列名（API 失败时的兜底方案）。
+    路径形如 C:\\Program Files\\WindowsApps\\<FullPackageName>\\xxx.exe
+    FullPackageName = Name_Version_Arch__PublisherHash
+    PackageFamilyName = Name_PublisherHash"""
+    try:
+        parts = (sys.executable or "").replace("/", "\\").split("\\")
+        idx = -1
+        for i, p in enumerate(parts):
+            if p.lower() == "windowsapps":
+                idx = i
+                break
+        if idx < 0 or idx + 1 >= len(parts):
+            return ""
+        full = parts[idx + 1]
+        # 以 '__' 分隔：左边 = Name_Version_Arch，右边 = PublisherHash
+        if "__" not in full:
+            return ""
+        left, right = full.rsplit("__", 1)
+        # 从 left 中去掉 Version 和 Architecture（最后两个 _ 分隔段）
+        segs = left.split("_")
+        if len(segs) >= 3:
+            name = "_".join(segs[:-2])
+            return f"{name}_{right}"
+        return ""
+    except Exception:
+        return ""
 
 
 def ensure_desktop_shortcut():
@@ -482,6 +537,9 @@ def ensure_desktop_shortcut():
     try:
         exe = sys.executable
         pfn = _get_package_family_name()
+        if not pfn and _is_msix_environment():
+            # API 检测失败但路径确在 WindowsApps 下，从路径兜底提取 PFN
+            pfn = _get_pfn_from_path()
         if pfn:
             alias = os.path.join(
                 os.environ.get("LOCALAPPDATA", ""),
@@ -491,10 +549,10 @@ def ensure_desktop_shortcut():
                 workdir = os.path.dirname(alias)
                 icon = alias
             else:
-                target = os.path.join(os.environ.get("WINDIR", r"C:\Windows"),
-                                      "explorer.exe")
+                windir = os.environ.get("WINDIR", r"C:\Windows")
+                target = os.path.join(windir, "explorer.exe")
                 args = f"shell:AppsFolder\\{pfn}!OfficeSensitiveEncryptor"
-                workdir = os.path.dirname(exe)
+                workdir = windir
                 icon = exe
         else:
             target, args = exe, ""
@@ -573,6 +631,39 @@ def ensure_shell_integration():
         ensure_context_menu()
     except Exception:
         pass
+
+
+def remove_shell_integration():
+    """卸载（--uninstall）：删除桌面快捷方式与右键菜单注册项。
+    供 ZIP 安装包的 uninstall.bat 调用；不存在的项静默跳过。"""
+    if not sys.platform.startswith("win"):
+        return
+    try:
+        script = (
+            "$ds=@([Environment]::GetFolderPath('Desktop'));"
+            "$ds+=[Environment]::GetFolderPath('CommonDesktopDirectory');"
+            "foreach($d in $ds){if($d){"
+            "$p=[System.IO.Path]::Combine($d,'Office敏感词加解密工具.lnk');"
+            "if(Test-Path $p){Remove-Item $p -Force}}}"
+        )
+        _run_powershell(script)
+    except Exception:
+        pass
+    try:
+        import winreg
+    except Exception:
+        return
+    for ext in (".docx", ".xlsx", ".pptx"):
+        for action in ("Encrypt", "Decrypt"):
+            base = rf"Software\Classes\SystemFileAssociations\{ext}\shell\OfficeSensitive{action}"
+            try:
+                winreg.DeleteKey(winreg.HKEY_CURRENT_USER, base + r"\command")
+            except OSError:
+                pass
+            try:
+                winreg.DeleteKey(winreg.HKEY_CURRENT_USER, base)
+            except OSError:
+                pass
 
 
 # ==================== 通用工具 ====================
@@ -2407,6 +2498,13 @@ if __name__ == "__main__":
     if "--gen-files" in sys.argv[1:]:
         # 打包脚本专用：只释放说明书/版权文件后退出，不启动界面
         ensure_manual_files()
+        sys.exit(0)
+    if "--uninstall" in sys.argv[1:]:
+        # ZIP 安装包卸载入口：清理桌面快捷方式与右键菜单后退出，
+        # 安装目录由 uninstall.bat 删除
+        remove_shell_integration()
+        print("已移除桌面快捷方式与右键菜单。")
+        print("安装目录由 uninstall.bat 删除。")
         sys.exit(0)
     app = MainApp()
     app.run()

@@ -37,35 +37,35 @@ set APP_DIR=msix_packaging\app
 set EXE=%APP_DIR%\OfficeSensitiveEncryptor.exe
 set MSIX=msix_packaging\dist_msix\OfficeSensitiveEncryptor.msix
 
-echo [1/7] Checking Python environment...
+echo [1/8] Checking Python environment...
 where python >nul 2>nul
 if errorlevel 1 goto :err_python
 
-echo [2/7] Installing build and runtime dependencies...
+echo [2/8] Installing build and runtime dependencies...
 python -m pip install --upgrade pyinstaller python-docx openpyxl python-pptx cryptography
 if errorlevel 1 goto :err_deps
 
-echo [3/7] Running logic self-test (14 regression tests)...
+echo [3/8] Running logic self-test (14 regression tests)...
 python test_encryptor.py
 if errorlevel 1 goto :err_test
 
-echo [4/7] Building with PyInstaller (about 1-3 minutes)...
+echo [4/8] Building with PyInstaller (about 1-3 minutes)...
 mkdir "%APP_DIR%" 2>nul
 del /q "%APP_DIR%\*.txt" 2>nul
 python -m PyInstaller office_sensitive_encryptor.spec --noconfirm --distpath "%APP_DIR%"
 if errorlevel 1 goto :err_build
 if not exist "%EXE%" goto :err_exe
 
-echo [5/7] Copying demo vocabularies and sample documents (word dir)...
+echo [5/8] Copying demo vocabularies and sample documents (word dir)...
 xcopy "%~dp0word" "%APP_DIR%\word\" /e /i /y >nul
 if errorlevel 1 goto :err_word
 if not exist "%APP_DIR%\word\vocab_legal.json" goto :err_word
 
-echo [6/7] Running the exe once to generate manual and license files...
+echo [6/8] Running the exe once to generate manual and license files...
 start "" /wait "%EXE%" --gen-files
 if not exist "%APP_DIR%\*.txt" goto :err_txt
 
-echo [7/7] Packing MSIX from the app folder...
+echo [7/8] Packing MSIX from the app folder...
 set MSIX_ARGS=nosign auto
 :parse_pwd
 if "%~1"=="" goto :msix_go
@@ -79,6 +79,25 @@ goto :parse_pwd
 :msix_go
 call msix_packaging\build_msix.bat %MSIX_ARGS%
 if errorlevel 1 goto :err_msix
+
+echo [8/8] Building ZIP distribution (installs to Program Files)...
+if not exist "%~dp0dist_zip" mkdir "%~dp0dist_zip"
+set "ZIP_STAGE=%~dp0dist_zip\stage"
+if exist "%ZIP_STAGE%" rd /s /q "%ZIP_STAGE%"
+mkdir "%ZIP_STAGE%"
+copy /y "%APP_DIR%\OfficeSensitiveEncryptor.exe" "%ZIP_STAGE%\" >nul
+if errorlevel 1 goto :err_zip
+xcopy /e /i /y "%APP_DIR%\word" "%ZIP_STAGE%\word" >nul
+if errorlevel 1 goto :err_zip
+copy /y "%~dp0msix_packaging\zip\install.bat" "%ZIP_STAGE%\" >nul
+if errorlevel 1 goto :err_zip
+copy /y "%~dp0msix_packaging\zip\uninstall.bat" "%ZIP_STAGE%\" >nul
+for /f "delims=" %%v in ('powershell -NoProfile -Command "$m=[xml](Get-Content -Raw '%~dp0msix_packaging\app\AppxManifest.xml'); $m.Package.Identity.Version"') do set "ZIPVER=%%v"
+if "%ZIPVER%"=="" set ZIPVER=2.4.0
+powershell -NoProfile -Command "Compress-Archive -Path '%ZIP_STAGE%\*' -DestinationPath '%~dp0dist_zip\OfficeSensitiveEncryptor_%ZIPVER%.zip' -Force"
+if errorlevel 1 goto :err_zip
+rd /s /q "%ZIP_STAGE%"
+echo      ZIP created: dist_zip\OfficeSensitiveEncryptor_%ZIPVER%.zip
 goto :finish
 
 :err_python
@@ -135,6 +154,12 @@ echo ERROR: MSIX packing failed. See messages above.
 pause
 exit /b 1
 
+:err_zip
+echo.
+echo ERROR: ZIP distribution creation failed.
+pause
+exit /b 1
+
 :finish
 echo.
 echo ============================================================
@@ -143,10 +168,15 @@ echo    exe : %cd%\%EXE%
 echo    word: demo vocabularies + sample documents next to the exe
 echo    txt : manual + license files next to the exe
 echo    msix: %cd%\%MSIX%
+echo    zip : %cd%\dist_zip\OfficeSensitiveEncryptor_%ZIPVER%.zip
 echo.
 echo  - Store submission: submit the .msix to Partner Center
 echo    (the Store re-signs it - no certificate needed)
 echo  - Side-loading:    build.bat sign PASSWORD ^<pfx-password^>
 echo                     (needs mycert.pfx in msix_packaging)
+echo  - Program Files:   unzip dist_zip\OfficeSensitiveEncryptor_*.zip,
+echo                     run install.bat as admin (installs to
+echo                     C:\Program Files\OfficeSensitiveEncryptor;
+echo                     uninstall.bat in that folder removes it)
 echo ============================================================
 pause
