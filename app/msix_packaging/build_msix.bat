@@ -225,7 +225,7 @@ echo ERROR: certificate not found: %CERT%
 
 echo Create a test one with:
 
-echo   $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=Sam Li" -CertStoreLocation Cert:\CurrentUser\My
+echo   $cert = New-SelfSignedCertificate -Type CodeSigningCert -Subject "CN=DF81B408-E5B2-48DC-A919-4D0ABCEED8B5" -CertStoreLocation Cert:\CurrentUser\My
 
 echo   $pwd  = ConvertTo-SecureString -String "YOUR_PFX_PASSWORD" -Force -AsPlainText
 
@@ -347,7 +347,7 @@ echo.
 
 echo  If install fails with 0x800B010A (untrusted publisher cert):
 
-echo    Export-Certificate -Cert (Get-ChildItem Cert:\CurrentUser\My ^| Where-Object {$_.Subject -eq "CN=Sam Li"}) -FilePath mycert.cer
+echo    Export-Certificate -Cert (Get-ChildItem Cert:\CurrentUser\My ^| Where-Object {$_.Subject -eq "CN=DF81B408-E5B2-48DC-A919-4D0ABCEED8B5"}) -FilePath mycert.cer
 
 echo    Import-Certificate -FilePath .\mycert.cer -CertStoreLocation Cert:\LocalMachine\Root
 

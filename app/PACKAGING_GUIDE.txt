@@ -132,12 +132,17 @@
      ★ mycert.pfx 如何获得（完整流程，PowerShell 执行）：
        第1步 生成自签名代码签名证书：
          $cert = New-SelfSignedCertificate -Type CodeSigningCert `
-             -Subject "CN=Sam Li" -CertStoreLocation Cert:\CurrentUser\My
+             -Subject "CN=DF81B408-E5B2-48DC-A919-4D0ABCEED8B5" `
+             -CertStoreLocation Cert:\CurrentUser\My
          · -Subject 必须与 app\AppxManifest.xml 的
-           Publisher="CN=Sam Li" 完全一致，否则安装报错；
+           Publisher="CN=DF81B408-E5B2-48DC-A919-4D0ABCEED8B5"
+           完全一致，否则安装报错；
+         · 该 Publisher 即合作伙伴中心账号的发布者 ID（GUID），
+           自签证书使用同一字符串可保证包系列名(PFN)一致；
          · 默认有效期 1 年，想延长（如 5 年）：
            $cert = New-SelfSignedCertificate -Type CodeSigningCert `
-               -Subject "CN=Sam Li" -CertStoreLocation Cert:\CurrentUser\My `
+               -Subject "CN=DF81B408-E5B2-48DC-A919-4D0ABCEED8B5" `
+               -CertStoreLocation Cert:\CurrentUser\My `
                -NotAfter (Get-Date).AddYears(5)
        第2步 导出为 pfx（证书+私钥，需密码保护）：
          $pwd = ConvertTo-SecureString -String "你的证书密码" -Force -AsPlainText
@@ -150,7 +155,7 @@
          · 之后签名模式自动签名（未传密码时脚本会明确报错提示）。
        第4步（可选）重新导出：证书已装在存储里，以后想再导出 pfx：
          $cert = Get-ChildItem Cert:\CurrentUser\My |
-                 Where-Object {$_.Subject -eq "CN=Sam Li"}
+                 Where-Object {$_.Subject -eq "CN=DF81B408-E5B2-48DC-A919-4D0ABCEED8B5"}
          $pwd = ConvertTo-SecureString -String "原密码" -Force -AsPlainText
          Export-PfxCertificate -Cert $cert -FilePath mycert.pfx -Password $pwd
      ★ 证书安全：pfx 含私钥=签名身份，切勿上传网盘/发给他人，
@@ -158,8 +163,12 @@
        正式对外分发走商店（免证书）或商业证书。
      - 正式分发：购买支持 MSIX 的商业代码签名证书
        （DigiCert / Sectigo / GlobalSign，SHA-256 + 时间戳）。
-     - 若证书 Subject 不是 CN=Sam Li，需同步修改 app\AppxManifest.xml
-       里的 Publisher 属性（必须与证书完全一致）。
+       注意：商业证书的 Subject 通常与商店发布者 ID 不同，用其
+       签名的包不能提交商店（商店要求 Publisher 与预留值严格
+       一致并由商店重签）；商业证书仅用于商店之外的侧载分发。
+     - 若更换开发者账号导致 Publisher 变化，需同步修改
+       app\AppxManifest.xml 里的 Name / Publisher（必须与合作
+       伙伴中心预留值完全一致）。
      - 若证书丢失且未导出过 pfx，可从存储重新导出（见第4步）。
 
   D) 目录打包原理
@@ -189,15 +198,24 @@
        - 个人开发者：新流程免注册费（原 19 美元已取消），
          需政府签发的身份证件 + 人脸验证；
        - 企业账号：需公司主体验证（付费）。
-    2. 保留应用名称："Office敏感词加解密工具"
-       （英文名建议同时预留 samstay.OfficeSensitiveEncryptor）。
-    3. 提交应用：上传 .msix，填写商店列表（简介/截图/类别/定价）。
+    2. 保留应用名称：合作伙伴中心会分配包标识（Name/Publisher），
+       本项目当前预留值为：
+         Name      = SamLi.Office
+         Publisher = CN=DF81B408-E5B2-48DC-A919-4D0ABCEED8B5
+         PFN       = SamLi.Office_rmvsnw9t0fap4
+       AppxManifest.xml 已按此填写，直接打包提交即可；
+       若在新账号下提交，须以该中心"产品标识"页显示的值为准
+       修改清单后重新打包。
+    3. 提交应用：上传 .msix（用 build.bat 默认的 nosign 模式，
+       商店自动重签），填写商店列表（简介/截图/类别/定价）。
     4. 通过商店认证：微软自动测试 + 人工审核
        （桌面全信任应用一般顺利；需注意商店政策）。
 
   提交商店的包要求（build.bat 已满足）：
-    - AppxManifest.xml 的 Publisher 建议与开发者账号显示名对应；
-    - 版本号四段式（当前 2.4.0.0，商店提交前建议按需递增）；
+    - AppxManifest.xml 的 Name/Publisher 与合作伙伴中心预留值
+      完全一致（不一致会报"无效的软件包标识名称/系列名称/
+      发布者名称"，本次已按中心返回值修正）；
+    - 版本号四段式（当前 2.4.0.0，每次提审须高于上次版本）；
     - 图标合规（Assets 占位图可先提交，正式上架建议替换）。
 
 ──────────────────────────────────────────────────────────────────
@@ -249,7 +267,7 @@
          （途径A：证书已在存储中，最常见）
            先导出 cer（无需管理员）：
              $cert = Get-ChildItem Cert:\CurrentUser\My ^|
-                     Where-Object {$_.Subject -eq "CN=Sam Li"}
+                     Where-Object {$_.Subject -eq "CN=DF81B408-E5B2-48DC-A919-4D0ABCEED8B5"}
              Export-Certificate -Cert $cert -FilePath mycert.cer
            再导入受信任根存储（这一步需要管理员）：
              Import-Certificate -FilePath .\mycert.cer
@@ -274,7 +292,8 @@
         → 开发人员模式），允许旁加载不受信任证书的包；
      ③ 上架微软商店（推荐正式分发）：商店用微软证书自动重签，
         用户安装不会出现此错误，也无需任何证书操作。
-     注意：若证书 Subject 与包 Publisher（CN=Sam Li）不一致，
+     注意：若证书 Subject 与包 Publisher
+     （CN=DF81B408-E5B2-48DC-A919-4D0ABCEED8B5）不一致，
      也会安装失败，请保持两者完全一致。
 
 ══════════════════════════════════════════════════════════════════

@@ -2,8 +2,15 @@
 <!--
   MSIX 包清单（目录打包方式）
   元素顺序严格遵循微软官方模板，makeappx 对顺序敏感，请勿调整。
-  ★ 发布者名称(Publisher)必须与签名证书的 Subject 完全一致 ★
-  若你的证书是 CN=你的名字，请同步修改下方 Publisher 属性。
+  ★ Identity 的 Name / Publisher 必须与合作伙伴中心
+    (Partner Center) 保留的应用标识完全一致，否则提交报
+    "无效的软件包标识名称/发布者名称"：
+      Name      = SamLi.Office
+      Publisher = CN=DF81B408-E5B2-48DC-A919-4D0ABCEED8B5
+    对应包系列名(PFN) = SamLi.Office_rmvsnw9t0fap4。
+    Publisher 是账号发布者 ID（GUID 形式），不是显示名；
+    商店提交无需自签名（商店自动重签）。侧载自签名证书的
+    Subject 也必须与上面 Publisher 完全一致。
   包名 Name 只能包含字母/数字/点/连字符，3-50 字符，不能有空格。
 -->
 <Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
@@ -11,9 +18,9 @@
          xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
          IgnorableNamespaces="uap rescap">
 
-  <!-- 身份：包名 / 发布者（=证书 Subject）/ 版本(Major.Minor.Build.Revision) -->
-  <Identity Name="samstay.OfficeSensitiveEncryptor"
-            Publisher="CN=Sam Li"
+  <!-- 身份：包名 / 发布者ID（=合作伙伴中心预留值）/ 版本(Major.Minor.Build.Revision) -->
+  <Identity Name="SamLi.Office"
+            Publisher="CN=DF81B408-E5B2-48DC-A919-4D0ABCEED8B5"
             Version="2.4.0.0" />
 
   <Properties>
