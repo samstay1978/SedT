@@ -18,7 +18,9 @@ app/msix_packaging/dist_msix/
 # build.bat 第8步生成的 ZIP 安装包（含临时 staging 目录）
 app/dist_zip/
 
-# 程序运行/打包时自动释放的说明书副本
+# 程序运行/打包时自动释放的说明书副本（由内嵌内容生成，非源文件）
+app/README.txt
+app/LICENSE.txt
 app/msix_packaging/app/README.txt
 app/msix_packaging/app/LICENSE.txt
 
