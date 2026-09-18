@@ -1,5 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
-# Office 敏感词加解密工具 - PyInstaller 打包配置
+# 文档敏感词加解密工具 - PyInstaller 打包配置
 # 用法: 由 build.bat 调用（一条龙），或手动:
 #   pyinstaller office_sensitive_encryptor.spec --noconfirm --distpath msix_packaging\app
 # 产物: msix_packaging/app/OfficeSensitiveEncryptor.exe （单文件）

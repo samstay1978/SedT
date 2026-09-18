@@ -24,7 +24,7 @@
             Version="2.4.0.0" />
 
   <Properties>
-    <DisplayName>Office敏感词加解密工具</DisplayName>
+    <DisplayName>文档敏感词加解密工具</DisplayName>
     <PublisherDisplayName>Sam Li</PublisherDisplayName>
     <Description>Office 文档（Word/Excel/PPT）敏感词替换加密工具</Description>
     <Logo>Assets\StoreLogo.png</Logo>
@@ -48,7 +48,7 @@
     <Application Id="OfficeSensitiveEncryptor"
                  Executable="OfficeSensitiveEncryptor.exe"
                  EntryPoint="Windows.FullTrustApplication">
-      <uap:VisualElements DisplayName="Office敏感词加解密工具"
+      <uap:VisualElements DisplayName="文档敏感词加解密工具"
                           Square150x150Logo="Assets\Square150x150Logo.png"
                           Square44x44Logo="Assets\Square44x44Logo.png"
                           Description="Office 文档（Word/Excel/PPT）敏感词替换加密工具"

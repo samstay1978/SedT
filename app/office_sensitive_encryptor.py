@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 r"""
-Office文档敏感词加解密工具 v2.4
+文档敏感词加解密工具 v2.4
 支持格式: Word(.docx), Excel(.xlsx), PowerPoint(.pptx)
 v2.4 更新内容:
 1. 新增"强加密"模式（单文件加密、批量加密均可勾选）：
@@ -39,7 +39,7 @@ from abc import ABC, abstractmethod
 # ==================== 内嵌说明书内容 ====================
 
 USER_MANUAL_CONTENT = r"""══════════════════════════════════════════════════════════════════
-                    Office敏感词加解密工具 — 使用说明书
+                    文档敏感词加解密工具 — 使用说明书
                               版本: v2.4
 ══════════════════════════════════════════════════════════════════
 
@@ -164,7 +164,7 @@ v2.3 新增:
   打包为 exe / MSIX 安装后，首次启动程序会自动完成：
 
   1. 桌面图标
-     - 在桌面创建「Office敏感词加解密工具」快捷方式；
+     - 在桌面创建「文档敏感词加解密工具」快捷方式；
      - MSIX 安装后 exe 位于系统受限目录（WindowsApps），普通用户
        无法直接执行该路径；快捷方式因此经 explorer.exe 打开
        shell:AppsFolder\<包系列名>!<应用ID>（系统应用模型激活）
@@ -173,8 +173,8 @@ v2.3 新增:
 
   2. 文件右键菜单
      - 对 .docx / .xlsx / .pptx 文件右键，出现两个菜单项：
-         「用Office敏感词工具加密」
-         「用Office敏感词工具解密」
+         「用文档敏感词工具加密」
+         「用文档敏感词工具解密」
      - 点击后程序自动打开并选中该文件，输入密码即可操作；
      - 注册写入当前用户注册表 (HKCU)，无需管理员权限；
      - 程序每次启动会校验路径，MSIX 更新后自动重注册。
@@ -255,7 +255,7 @@ A: 正常。强加密的替换串可能比原敏感词长（最长 2 倍），�
 """
 
 COPYRIGHT_CONTENT = """══════════════════════════════════════════════════════════════════
-                    Office敏感词加解密工具 — 版权声明与授权协议
+                    文档敏感词加解密工具 — 版权声明与授权协议
                               版本: v2.4
                          版权所有 © Sam Li
                          联系邮箱: samstay@sina.com
@@ -263,7 +263,7 @@ COPYRIGHT_CONTENT = """═══════════════════
 
 【一、版权声明】
 
-  本软件"Office敏感词加解密工具"（以下简称"本软件"）由 Sam Li
+  本软件"文档敏感词加解密工具"（以下简称"本软件"）由 Sam Li
   独立开发完成，受《中华人民共和国著作权法》、《计算机软件
   保护条例》及其他相关法律法规保护。
 
@@ -566,7 +566,7 @@ def ensure_desktop_shortcut():
             "$d=[Environment]::GetFolderPath('Desktop');"
             "if($d){"
             "$s=(New-Object -ComObject WScript.Shell).CreateShortcut("
-            f"[System.IO.Path]::Combine($d,'Office敏感词加解密工具.lnk'));"
+            f"[System.IO.Path]::Combine($d,'文档敏感词加解密工具.lnk'));"
             f"$s.TargetPath='{target_q}';"
             f"$s.Arguments='{args_q}';"
             f"$s.WorkingDirectory='{workdir_q}';"
@@ -614,8 +614,8 @@ def ensure_context_menu():
 
     try:
         for ext in (".docx", ".xlsx", ".pptx"):
-            set_menu(ext, "encrypt", "用Office敏感词工具加密")
-            set_menu(ext, "decrypt", "用Office敏感词工具解密")
+            set_menu(ext, "encrypt", "用文档敏感词工具加密")
+            set_menu(ext, "decrypt", "用文档敏感词工具解密")
     except Exception:
         pass
 
@@ -643,7 +643,7 @@ def remove_shell_integration():
             "$ds=@([Environment]::GetFolderPath('Desktop'));"
             "$ds+=[Environment]::GetFolderPath('CommonDesktopDirectory');"
             "foreach($d in $ds){if($d){"
-            "$p=[System.IO.Path]::Combine($d,'Office敏感词加解密工具.lnk');"
+            "$p=[System.IO.Path]::Combine($d,'文档敏感词加解密工具.lnk');"
             "if(Test-Path $p){Remove-Item $p -Force}}}"
         )
         _run_powershell(script)
@@ -2295,7 +2295,7 @@ class BatchFrame(ttk.LabelFrame):
 class MainApp:
     def __init__(self):
         self.root = tk.Tk()
-        self.root.title("Office敏感词加解密工具 v2.4")
+        self.root.title("文档敏感词加解密工具 v2.4")
         self.root.geometry("1120x900")
         try:
             self.root.state("zoomed")   # Windows 最大化；其它平台不支持时忽略
@@ -2414,7 +2414,7 @@ class MainApp:
         title_frame = ttk.Frame(header)
         title_frame.pack(fill=tk.X)
 
-        title = ttk.Label(title_frame, text="Office文档敏感词加解密工具",
+        title = ttk.Label(title_frame, text="文档敏感词加解密工具",
                          font=("Microsoft YaHei", 16, "bold"))
         title.pack(side=tk.LEFT)
 
